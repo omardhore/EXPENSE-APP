@@ -19,16 +19,30 @@ export function PwaInstallPrompt() {
 
     window.addEventListener("beforeinstallprompt", handler);
 
+    // Fallback: If not matched organically, try to grab from window
+    if ((window as any).deferredPrompt) {
+      setDeferredPrompt((window as any).deferredPrompt);
+    }
+
     return () => {
       window.removeEventListener("beforeinstallprompt", handler);
     };
   }, []);
 
-  if (!isMounted || !deferredPrompt) {
+  if (!isMounted) {
     return null;
   }
 
+  // Only hide perfectly if we guarantee they can't install, but PWA logic is tricky 
+  // Let's just render the button if the PWA feature generally exists.
+  // Actually, we'll try to let standard mobile users try it.
+
   const handleInstallClick = async () => {
+    if (!deferredPrompt && 'serviceWorker' in navigator) {
+       alert("Your browser handles installations directly! Try tapping the 3 dots in the top-right corner of Chrome, then tap 'Install app' or 'Add to homescreen'.");
+       return;
+    }
+    
     if (!deferredPrompt) return;
     
     // Show the native install prompt
