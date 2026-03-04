@@ -39,7 +39,14 @@ export function PwaInstallPrompt() {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt && 'serviceWorker' in navigator) {
-       alert("Your browser handles installations directly! Try tapping the 3 dots in the top-right corner of Chrome, then tap 'Install app' or 'Add to homescreen'.");
+       // Check if they are on iOS Safari where install prompts are physically blocked by Apple
+       const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+       
+       if (isIos) {
+         alert("To install on iPhone: Tap the Share button at the bottom of Safari, then scroll down and tap 'Add to Home Screen'.");
+       } else {
+         alert("To install: Tap the 3 dots (⋮) in the top-right corner of Chrome, then tap 'Install app' or 'Add to homescreen'.");
+       }
        return;
     }
     
