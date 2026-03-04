@@ -29,6 +29,7 @@ import {
   Cell,
 } from "recharts";
 import { BRAND_CHART_COLORS } from "@/lib/constants/brand-colors";
+import { BudgetWarnings } from "@/components/dashboard/budget-warnings";
 
 interface Summary {
   period: string;
@@ -105,6 +106,8 @@ export default function DashboardPage() {
           </TabsList>
         </Tabs>
       </div>
+
+      <BudgetWarnings />
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
