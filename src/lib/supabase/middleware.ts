@@ -33,13 +33,20 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Redirect unauthenticated users to login (except for auth pages)
+  // Redirect unauthenticated users to login (except for auth pages and PWA files)
   const isAuthPage =
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/signup") ||
     request.nextUrl.pathname.startsWith("/auth");
 
-  if (!user && !isAuthPage) {
+  const isPublicFile = 
+    request.nextUrl.pathname.startsWith("/manifest.json") ||
+    request.nextUrl.pathname.startsWith("/sw.js") ||
+    request.nextUrl.pathname.startsWith("/workbox-") ||
+    request.nextUrl.pathname.startsWith("/icon-") ||
+    request.nextUrl.pathname.match(/\.(png|ico|svg|xml)$/);
+
+  if (!user && !isAuthPage && !isPublicFile) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
