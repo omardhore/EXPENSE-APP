@@ -51,6 +51,7 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       set({
         error: err instanceof Error ? err.message : "Failed to add category",
       });
+      throw err;
     }
   },
 
@@ -74,6 +75,7 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
         error:
           err instanceof Error ? err.message : "Failed to update category",
       });
+      throw err;
     }
   },
 

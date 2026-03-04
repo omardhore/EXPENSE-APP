@@ -1,4 +1,4 @@
-import { z } from "zod/v4";
+import { z } from "zod";
 
 export const paymentMethods = ["cash", "credit", "debit", "other"] as const;
 export const recurringFrequencies = ["weekly", "monthly", "yearly"] as const;
