@@ -2,7 +2,7 @@
   "name": "Expense Tracker",
   "short_name": "ExpenseApp",
   "description": "Personal expense tracking application",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#004161",
   "theme_color": "#004161",
@@ -10,12 +10,14 @@
     {
       "src": "/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
