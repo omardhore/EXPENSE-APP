@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -21,14 +21,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
 
 const currencies = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "INR"];
 
 export default function SettingsPage() {
+  const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [currency, setCurrency] = useState("USD");
+  const { theme, setTheme } = useTheme();
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [clearingData, setClearingData] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
 
@@ -39,6 +44,7 @@ export default function SettingsPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
+        setEmail(user.email ?? "");
         setName(user.user_metadata?.name ?? "");
         // Load user settings from the users table
         const { data } = await supabase
@@ -79,10 +85,35 @@ export default function SettingsPage() {
     setSaving(false);
   }
 
+  async function handleClearData() {
+    if (
+      !confirm(
+        "Are you sure you want to delete ALL your expenses, budgets, and categories? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    setClearingData(true);
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      await supabase.from("expenses").delete().eq("user_id", user.id);
+      await supabase.from("budgets").delete().eq("user_id", user.id);
+      await supabase.from("categories").delete().eq("user_id", user.id);
+      toast.success("All data has been cleared.");
+      setTimeout(() => window.location.reload(), 1500);
+    }
+    setClearingData(false);
+  }
+
   async function handleDeleteAccount() {
     if (
       !confirm(
-        "Are you sure you want to delete your account? This action cannot be undone.",
+        "Are you sure you want to delete your account FOREVER? This action cannot be undone.",
       )
     ) {
       return;
@@ -90,7 +121,7 @@ export default function SettingsPage() {
 
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push("/login");
+    router.push("/login"); // Auth trigger handles rest or Edge function if implemented
   }
 
   if (loading) {
@@ -112,8 +143,8 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Profile</CardTitle>
-          <CardDescription>Manage your account settings</CardDescription>
+          <CardTitle>Profile & Preferences</CardTitle>
+          <CardDescription>Manage your account, preferences, and theme.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {message && (
@@ -122,31 +153,63 @@ export default function SettingsPage() {
             </div>
           )}
           <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              disabled
+              className="bg-muted"
+            />
+            <p className="text-xs text-muted-foreground">Your email cannot be changed.</p>
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. John Doe"
             />
           </div>
-          <div className="space-y-2">
-            <Label>Currency</Label>
-            <Select value={currency} onValueChange={setCurrency}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {currencies.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          
+          <div className="grid grid-cols-2 gap-4 pt-2">
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Theme</Label>
+              <Select value={theme} onValueChange={setTheme}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="light">Light</SelectItem>
+                  <SelectItem value="dark">Dark</SelectItem>
+                  <SelectItem value="system">System Default</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save Changes"}
-          </Button>
+
+          <div className="pt-4">
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -154,13 +217,24 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-destructive">Danger Zone</CardTitle>
           <CardDescription>
-            Permanently delete your account and all data
+            Permanently delete your account or wipe your workspace data.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button variant="destructive" onClick={handleDeleteAccount}>
-            Delete Account
-          </Button>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button 
+              variant="outline" 
+              className="text-destructive border-destructive hover:bg-destructive/10" 
+              onClick={handleClearData}
+              disabled={clearingData}
+            >
+              {clearingData ? "Clearing..." : "Clear Workspace Data"}
+            </Button>
+            
+            <Button variant="destructive" onClick={handleDeleteAccount}>
+              Delete Account
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
