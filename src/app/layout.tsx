@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
-import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -46,7 +45,6 @@ export default function RootLayout({
         >
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster richColors position="bottom-right" />
-          <PwaInstallPrompt />
         </ThemeProvider>
       </body>
     </html>
