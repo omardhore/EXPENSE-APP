@@ -33,6 +33,8 @@ export default function CategoriesPage() {
     useCategoryStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [form, setForm] = useState({
     name: "",
     color: NEW_CATEGORY_COLOR,
@@ -50,6 +52,9 @@ export default function CategoriesPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
     const data = {
       name: form.name,
       color: form.color,
@@ -68,6 +73,8 @@ export default function CategoriesPage() {
       resetForm();
     } catch {
       toast.error("Failed to save category");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -156,8 +163,8 @@ export default function CategoriesPage() {
                   />
                 </div>
               </div>
-              <Button type="submit" className="w-full">
-                {editingId ? "Update Category" : "Add Category"}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : (editingId ? "Update Category" : "Add Category")}
               </Button>
             </form>
           </DialogContent>
