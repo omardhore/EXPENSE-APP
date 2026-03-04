@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, FileSpreadsheet, FileText } from "lucide-react";
+import { Download, FileSpreadsheet, FileText, FileJson } from "lucide-react";
 import { format, subMonths } from "date-fns";
 import { toast } from "sonner";
 
@@ -22,6 +22,34 @@ export default function ExportsPage() {
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [exportingCSV, setExportingCSV] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportingJSON, setExportingJSON] = useState(false);
+
+  async function handleExportJSON() {
+    setExportingJSON(true);
+    try {
+      const params = new URLSearchParams({ startDate, endDate });
+      const res = await fetch(`/api/v1/exports/json?${params}`);
+      if (!res.ok) throw new Error("Export failed");
+
+      const json = await res.json();
+      const blob = new Blob([JSON.stringify(json.data, null, 2)], {
+        type: "application/json",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `expenses_${startDate}_${endDate}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+      toast.success("JSON exported successfully");
+    } catch {
+      toast.error("Failed to export JSON");
+    } finally {
+      setExportingJSON(false);
+    }
+  }
 
   async function handleExportCSV() {
     setExportingCSV(true);
@@ -54,10 +82,8 @@ export default function ExportsPage() {
       const params = new URLSearchParams({
         startDate,
         endDate,
-        limit: "1000",
-        page: "1",
       });
-      const res = await fetch(`/api/v1/expenses?${params}`);
+      const res = await fetch(`/api/v1/exports/json?${params}`);
       const json = await res.json();
       if (!json.success) throw new Error("Failed to fetch expenses");
 
@@ -131,7 +157,7 @@ export default function ExportsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-4xl">
       <div>
         <h1 className="text-3xl font-bold">Exports</h1>
         <p className="text-muted-foreground">
@@ -171,7 +197,7 @@ export default function ExportsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         {/* CSV Export */}
         <Card>
           <CardHeader>
@@ -191,6 +217,29 @@ export default function ExportsPage() {
             >
               <Download className="mr-2 h-4 w-4" />
               {exportingCSV ? "Exporting..." : "Download CSV"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* JSON Export */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileJson className="h-5 w-5" />
+              JSON Export
+            </CardTitle>
+            <CardDescription>
+              Raw nested JSON data for backups and developers
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={handleExportJSON}
+              disabled={exportingJSON}
+              className="w-full"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {exportingJSON ? "Exporting..." : "Download JSON"}
             </Button>
           </CardContent>
         </Card>
