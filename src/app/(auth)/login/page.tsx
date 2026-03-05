@@ -44,7 +44,7 @@ export default function LoginPage() {
     router.refresh();
   }
 
-  async function handleOAuthLogin(provider: "google" | "github") {
+  async function handleOAuthLogin(provider: "google") {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
       provider,
@@ -103,22 +103,14 @@ export default function LoginPage() {
               </span>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleOAuthLogin("google")}
-            >
-              Google
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleOAuthLogin("github")}
-            >
-              GitHub
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => handleOAuthLogin("google")}
+          >
+            Google
+          </Button>
         </CardContent>
       </form>
       <CardFooter>

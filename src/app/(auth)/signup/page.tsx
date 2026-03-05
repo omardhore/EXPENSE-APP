@@ -48,6 +48,16 @@ export default function SignupPage() {
     setLoading(false);
   }
 
+  async function handleOAuthSignUp(provider: "google") {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+  }
+
   if (success) {
     return (
       <Card className="border-primary/20 shadow-sm">
@@ -119,6 +129,24 @@ export default function SignupPage() {
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Creating account..." : "Create account"}
+          </Button>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-primary/20" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                Or continue with
+              </span>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => handleOAuthSignUp("google")}
+          >
+            Google
           </Button>
         </CardContent>
       </form>
