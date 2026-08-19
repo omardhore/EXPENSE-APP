@@ -1,20 +1,23 @@
+import type { NextRequest } from "next/server";
 import { getAuthenticatedUser } from "@/lib/api/auth";
 import { successResponse, errorResponse } from "@/lib/api/response";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteUserData } from "@/lib/api/deleteUserData";
 
-export async function DELETE() {
-  const { user, error } = await getAuthenticatedUser();
+// Callable from the web app (cookie session) and the mobile app (Bearer
+// token) — see lib/api/auth.ts. Uses the service-role admin client
+// throughout, since removing the auth user itself requires it anyway.
+export async function DELETE(request: NextRequest) {
+  const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
-  const supabase = await createClient();
-  const dataError = await deleteUserData(supabase, user.id);
+  const admin = createAdminClient();
+  const dataError = await deleteUserData(admin, user.id);
   if (dataError) {
     return errorResponse("DATABASE_ERROR", dataError.message, 500);
   }
 
-  const { error: profileError } = await supabase
+  const { error: profileError } = await admin
     .from("users")
     .delete()
     .eq("id", user.id);
@@ -22,7 +25,6 @@ export async function DELETE() {
     return errorResponse("DATABASE_ERROR", profileError.message, 500);
   }
 
-  const admin = createAdminClient();
   const { error: authDeleteError } = await admin.auth.admin.deleteUser(
     user.id,
   );

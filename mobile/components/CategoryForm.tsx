@@ -1,0 +1,74 @@
+import { useState } from "react";
+import { Alert, ScrollView, StyleSheet } from "react-native";
+import { Field } from "@/components/Field";
+import { Button } from "@/components/Button";
+import type { Category } from "@/lib/database.types";
+
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+interface Props {
+  initial?: Category;
+  submitLabel: string;
+  onSubmit: (input: {
+    name: string;
+    icon: string | null;
+    color: string | null;
+  }) => Promise<unknown>;
+  onDelete?: () => Promise<void>;
+}
+
+export function CategoryForm({ initial, submitLabel, onSubmit, onDelete }: Props) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [icon, setIcon] = useState(initial?.icon ?? "");
+  const [color, setColor] = useState(initial?.color ?? "#2f6fed");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit() {
+    if (!name.trim()) {
+      Alert.alert("Missing name", "Category name is required.");
+      return;
+    }
+    if (color && !HEX_COLOR.test(color)) {
+      Alert.alert("Invalid color", "Use a hex color like #2f6fed.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSubmit({ name: name.trim(), icon: icon.trim() || null, color: color || null });
+    } catch (err) {
+      Alert.alert("Error", err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleDelete() {
+    if (!onDelete) return;
+    Alert.alert("Delete category", "Expenses in this category will keep their history but lose the category link.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => onDelete().catch((e) => Alert.alert("Error", e.message)),
+      },
+    ]);
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.container}>
+      <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. Groceries" />
+      <Field label="Icon (optional)" value={icon} onChangeText={setIcon} placeholder="e.g. cart" />
+      <Field label="Color (hex)" value={color} onChangeText={setColor} placeholder="#2f6fed" autoCapitalize="none" />
+
+      <Button title={saving ? "Saving..." : submitLabel} onPress={handleSubmit} loading={saving} />
+
+      {onDelete && (
+        <Button title="Delete category" variant="outline" onPress={handleDelete} />
+      )}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { padding: 16, gap: 14 },
+});
