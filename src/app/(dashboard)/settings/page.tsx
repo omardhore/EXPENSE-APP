@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -22,15 +22,16 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
-
-const currencies = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "INR"];
+import { currencies } from "@/lib/schemas/profile";
 
 export default function SettingsPage() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState<(typeof currencies)[number]>(
+    "USD",
+  );
   const { theme, setTheme } = useTheme();
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [clearingData, setClearingData] = useState(false);
@@ -40,22 +41,12 @@ export default function SettingsPage() {
 
   useEffect(() => {
     async function loadProfile() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        setEmail(user.email ?? "");
-        setName(user.user_metadata?.name ?? "");
-        // Load user settings from the users table
-        const { data } = await supabase
-          .from("users")
-          .select("currency")
-          .eq("id", user.id)
-          .single();
-        if (data) {
-          setCurrency(data.currency);
-        }
+      const res = await fetch("/api/v1/profile");
+      const json = await res.json();
+      if (json.success) {
+        setEmail(json.data.email ?? "");
+        setName(json.data.name ?? "");
+        setCurrency(json.data.currency);
       }
       setLoading(false);
     }
@@ -65,25 +56,22 @@ export default function SettingsPage() {
   async function handleSave() {
     setSaving(true);
     setMessage(null);
-    const supabase = createClient();
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Update auth metadata
-    await supabase.auth.updateUser({ data: { name } });
-
-    // Update user settings
-    await supabase
-      .from("users")
-      .update({ currency, updated_at: new Date().toISOString() })
-      .eq("id", user.id);
-
-    toast.success("Settings saved successfully");
-    setMessage("Settings saved successfully");
-    setSaving(false);
+    try {
+      const res = await fetch("/api/v1/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, currency }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        toast.error(json.error?.message ?? "Failed to save settings");
+        return;
+      }
+      toast.success("Settings saved successfully");
+      setMessage("Settings saved successfully");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleClearData() {
@@ -96,19 +84,18 @@ export default function SettingsPage() {
     }
 
     setClearingData(true);
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      await supabase.from("expenses").delete().eq("user_id", user.id);
-      await supabase.from("budgets").delete().eq("user_id", user.id);
-      await supabase.from("categories").delete().eq("user_id", user.id);
+    try {
+      const res = await fetch("/api/v1/data", { method: "DELETE" });
+      const json = await res.json();
+      if (!json.success) {
+        toast.error(json.error?.message ?? "Failed to clear data");
+        return;
+      }
       toast.success("All data has been cleared.");
       setTimeout(() => window.location.reload(), 1500);
+    } finally {
+      setClearingData(false);
     }
-    setClearingData(false);
   }
 
   async function handleDeleteAccount() {
@@ -185,11 +172,16 @@ export default function SettingsPage() {
               placeholder="e.g. John Doe"
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4 pt-2">
             <div className="space-y-2">
               <Label>Currency</Label>
-              <Select value={currency} onValueChange={setCurrency}>
+              <Select
+                value={currency}
+                onValueChange={(v) =>
+                  setCurrency(v as (typeof currencies)[number])
+                }
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -235,15 +227,15 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-4">
-            <Button 
-              variant="outline" 
-              className="text-destructive border-destructive hover:bg-destructive/10" 
+            <Button
+              variant="outline"
+              className="text-destructive border-destructive hover:bg-destructive/10"
               onClick={handleClearData}
               disabled={clearingData}
             >
               {clearingData ? "Clearing..." : "Clear Workspace Data"}
             </Button>
-            
+
             <Button
               variant="destructive"
               onClick={handleDeleteAccount}

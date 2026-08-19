@@ -2,45 +2,16 @@ import { getAuthenticatedUser } from "@/lib/api/auth";
 import { successResponse, errorResponse } from "@/lib/api/response";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { deleteUserData } from "@/lib/api/deleteUserData";
 
 export async function DELETE() {
   const { user, error } = await getAuthenticatedUser();
   if (error) return error;
 
   const supabase = await createClient();
-
-  // Delete in FK-safe order: rows that reference categories first.
-  const { error: expensesError } = await supabase
-    .from("expenses")
-    .delete()
-    .eq("user_id", user.id);
-  if (expensesError) {
-    return errorResponse("DATABASE_ERROR", expensesError.message, 500);
-  }
-
-  const { error: budgetsError } = await supabase
-    .from("budgets")
-    .delete()
-    .eq("user_id", user.id);
-  if (budgetsError) {
-    return errorResponse("DATABASE_ERROR", budgetsError.message, 500);
-  }
-
-  const { error: categoriesError } = await supabase
-    .from("categories")
-    .delete()
-    .eq("user_id", user.id);
-  if (categoriesError) {
-    return errorResponse("DATABASE_ERROR", categoriesError.message, 500);
-  }
-
-  const { data: files } = await supabase.storage
-    .from("receipts")
-    .list(user.id);
-  if (files && files.length > 0) {
-    await supabase.storage
-      .from("receipts")
-      .remove(files.map((f) => `${user.id}/${f.name}`));
+  const dataError = await deleteUserData(supabase, user.id);
+  if (dataError) {
+    return errorResponse("DATABASE_ERROR", dataError.message, 500);
   }
 
   const { error: profileError } = await supabase

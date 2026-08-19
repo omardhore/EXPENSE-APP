@@ -26,7 +26,17 @@ export async function GET(request: NextRequest) {
     return validationErrorResponse(details);
   }
 
-  const { startDate, endDate, category, page, limit } = queryResult.data;
+  const {
+    startDate,
+    endDate,
+    category,
+    minAmount,
+    maxAmount,
+    tag,
+    search,
+    page,
+    limit,
+  } = queryResult.data;
   const offset = (page - 1) * limit;
 
   const supabase = await createClient();
@@ -47,6 +57,24 @@ export async function GET(request: NextRequest) {
   }
   if (category) {
     query = query.eq("category_id", category);
+  }
+  if (minAmount !== undefined) {
+    query = query.gte("amount", minAmount);
+  }
+  if (maxAmount !== undefined) {
+    query = query.lte("amount", maxAmount);
+  }
+  if (tag) {
+    query = query.contains("tags", [tag]);
+  }
+  if (search) {
+    // PostgREST's `.or()` filter string treats , . ( ) as structural, so
+    // the value must be double-quoted (per PostgREST's syntax) with any
+    // embedded double quotes escaped.
+    const quoted = search.replace(/"/g, '\\"');
+    query = query.or(
+      `description.ilike."%${quoted}%",notes.ilike."%${quoted}%"`,
+    );
   }
 
   const { data, error: dbError, count } = await query;

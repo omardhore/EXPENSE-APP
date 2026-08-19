@@ -24,6 +24,10 @@ export const expenseQuerySchema = z.object({
   startDate: z.string().date().optional(),
   endDate: z.string().date().optional(),
   category: z.string().uuid().optional(),
+  minAmount: z.coerce.number().nonnegative().optional(),
+  maxAmount: z.coerce.number().nonnegative().optional(),
+  tag: z.string().min(1).optional(),
+  search: z.string().min(1).max(255).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });

@@ -17,6 +17,10 @@ interface ExpenseState {
     startDate?: string;
     endDate?: string;
     category?: string;
+    minAmount?: number;
+    maxAmount?: number;
+    tag?: string;
+    search?: string;
   };
   setFilters: (filters: ExpenseState["filters"]) => void;
   fetchExpenses: (page?: number) => Promise<void>;
@@ -49,6 +53,12 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       if (filters.startDate) params.set("startDate", filters.startDate);
       if (filters.endDate) params.set("endDate", filters.endDate);
       if (filters.category) params.set("category", filters.category);
+      if (filters.minAmount !== undefined)
+        params.set("minAmount", String(filters.minAmount));
+      if (filters.maxAmount !== undefined)
+        params.set("maxAmount", String(filters.maxAmount));
+      if (filters.tag) params.set("tag", filters.tag);
+      if (filters.search) params.set("search", filters.search);
 
       const res = await fetch(`/api/v1/expenses?${params}`);
       const json = await res.json();

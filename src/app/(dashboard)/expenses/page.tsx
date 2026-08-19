@@ -58,6 +58,7 @@ export default function ExpensesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
   const [form, setForm] = useState({
     description: "",
     amount: "",
@@ -73,6 +74,16 @@ export default function ExpensesPage() {
     fetchExpenses();
     fetchCategories();
   }, [fetchExpenses, fetchCategories]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (searchInput !== (filters.search ?? "")) {
+        setFilters({ ...filters, search: searchInput || undefined });
+      }
+    }, 400);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
   function resetForm() {
     setForm({
@@ -316,6 +327,10 @@ export default function ExpensesPage() {
                     Recurring expense
                   </Label>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Tags this expense as recurring for your own tracking.
+                  Future occurrences aren&apos;t added automatically yet.
+                </p>
                 {form.is_recurring && (
                   <div className="space-y-2">
                     <Label>Frequency</Label>
@@ -386,6 +401,16 @@ export default function ExpensesPage() {
       <Card>
         <CardContent className="flex flex-wrap gap-4 p-4">
           <div className="space-y-1">
+            <Label className="text-xs">Search</Label>
+            <Input
+              type="text"
+              className="w-48"
+              placeholder="Description or notes"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
             <Label className="text-xs">From</Label>
             <Input
               type="date"
@@ -430,6 +455,53 @@ export default function ExpensesPage() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Min amount</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              className="w-28"
+              value={filters.minAmount ?? ""}
+              onChange={(e) =>
+                setFilters({
+                  ...filters,
+                  minAmount: e.target.value
+                    ? Number(e.target.value)
+                    : undefined,
+                })
+              }
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Max amount</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              className="w-28"
+              value={filters.maxAmount ?? ""}
+              onChange={(e) =>
+                setFilters({
+                  ...filters,
+                  maxAmount: e.target.value
+                    ? Number(e.target.value)
+                    : undefined,
+                })
+              }
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Tag</Label>
+            <Input
+              type="text"
+              className="w-32"
+              value={filters.tag ?? ""}
+              onChange={(e) =>
+                setFilters({ ...filters, tag: e.target.value || undefined })
+              }
+            />
           </div>
         </CardContent>
       </Card>
