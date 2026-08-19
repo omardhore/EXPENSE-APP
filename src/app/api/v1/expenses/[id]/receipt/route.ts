@@ -7,8 +7,13 @@ import {
   notFoundResponse,
 } from "@/lib/api/response";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+const ALLOWED_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "application/pdf": "pdf",
+};
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+const SIGNED_URL_TTL_SECONDS = 120;
 
 export async function POST(
   request: NextRequest,
@@ -25,7 +30,8 @@ export async function POST(
     return errorResponse("VALIDATION_ERROR", "No file provided", 400);
   }
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  const ext = ALLOWED_TYPES[file.type];
+  if (!ext) {
     return errorResponse(
       "VALIDATION_ERROR",
       "File type not allowed. Use JPEG, PNG, or PDF.",
@@ -56,27 +62,70 @@ export async function POST(
     return notFoundResponse("Expense");
   }
 
-  // Upload to Supabase Storage
-  const ext = file.name.split(".").pop();
+  // Upload to Supabase Storage. The "receipts" bucket must be private —
+  // access is granted per-request via a short-lived signed URL (see GET
+  // below), never a permanent public link.
   const path = `${user.id}/${id}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from("receipts")
-    .upload(path, file, { upsert: true });
+    .upload(path, file, { upsert: true, contentType: file.type });
 
   if (uploadError) {
     return errorResponse("STORAGE_ERROR", uploadError.message, 500);
   }
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from("receipts").getPublicUrl(path);
-
-  // Update expense with receipt URL
+  // Store the storage path, not a public URL.
   await supabase
     .from("expenses")
-    .update({ receipt_url: publicUrl, updated_at: new Date().toISOString() })
-    .eq("id", id);
+    .update({ receipt_url: path, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", user.id);
 
-  return successResponse({ receipt_url: publicUrl });
+  const { data: signed, error: signError } = await supabase.storage
+    .from("receipts")
+    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+
+  if (signError) {
+    return errorResponse("STORAGE_ERROR", signError.message, 500);
+  }
+
+  return successResponse({ receipt_url: signed.signedUrl });
+}
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { user, error } = await getAuthenticatedUser();
+  if (error) return error;
+
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const { data: expense } = await supabase
+    .from("expenses")
+    .select("receipt_url")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .is("deleted_at", null)
+    .single();
+
+  if (!expense) {
+    return notFoundResponse("Expense");
+  }
+
+  if (!expense.receipt_url) {
+    return notFoundResponse("Receipt");
+  }
+
+  const { data: signed, error: signError } = await supabase.storage
+    .from("receipts")
+    .createSignedUrl(expense.receipt_url, SIGNED_URL_TTL_SECONDS);
+
+  if (signError) {
+    return errorResponse("STORAGE_ERROR", signError.message, 500);
+  }
+
+  return successResponse({ receipt_url: signed.signedUrl });
 }
