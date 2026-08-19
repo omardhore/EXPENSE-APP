@@ -34,6 +34,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [clearingData, setClearingData] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
 
@@ -119,9 +120,21 @@ export default function SettingsPage() {
       return;
     }
 
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login"); // Auth trigger handles rest or Edge function if implemented
+    setDeletingAccount(true);
+    try {
+      const res = await fetch("/api/v1/account", { method: "DELETE" });
+      const json = await res.json();
+      if (!json.success) {
+        toast.error(json.error?.message ?? "Failed to delete account");
+        return;
+      }
+
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push("/login");
+    } finally {
+      setDeletingAccount(false);
+    }
   }
 
   if (loading) {
@@ -231,8 +244,12 @@ export default function SettingsPage() {
               {clearingData ? "Clearing..." : "Clear Workspace Data"}
             </Button>
             
-            <Button variant="destructive" onClick={handleDeleteAccount}>
-              Delete Account
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={deletingAccount}
+            >
+              {deletingAccount ? "Deleting..." : "Delete Account"}
             </Button>
           </div>
         </CardContent>

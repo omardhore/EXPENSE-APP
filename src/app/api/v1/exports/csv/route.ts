@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/api/auth";
 import { errorResponse } from "@/lib/api/response";
+import { sanitizeCsvField } from "@/lib/utils/csv";
 
 export async function GET(request: NextRequest) {
   const { user, error } = await getAuthenticatedUser();
@@ -49,12 +50,12 @@ export async function GET(request: NextRequest) {
   const expenses = (data ?? []) as unknown as ExpenseRow[];
   const rows = expenses.map((e) => [
     e.date,
-    `"${e.description.replace(/"/g, '""')}"`,
+    `"${sanitizeCsvField(e.description).replace(/"/g, '""')}"`,
     e.amount,
-    e.categories?.name ?? "",
+    sanitizeCsvField(e.categories?.name ?? ""),
     e.payment_method,
-    `"${(e.notes ?? "").replace(/"/g, '""')}"`,
-    `"${(e.tags ?? []).join(", ")}"`,
+    `"${sanitizeCsvField(e.notes ?? "").replace(/"/g, '""')}"`,
+    `"${sanitizeCsvField((e.tags ?? []).join(", "))}"`,
   ]);
 
   const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");

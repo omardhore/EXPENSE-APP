@@ -162,6 +162,16 @@ export default function ExpensesPage() {
     }
   }
 
+  async function viewReceipt(expenseId: string) {
+    const res = await fetch(`/api/v1/expenses/${expenseId}/receipt`);
+    const json = await res.json();
+    if (json.success) {
+      window.open(json.data.receipt_url, "_blank", "noopener,noreferrer");
+    } else {
+      toast.error("Could not load receipt");
+    }
+  }
+
   const paymentMethodLabels: Record<string, string> = {
     cash: "Cash",
     credit: "Credit",
@@ -500,15 +510,14 @@ export default function ExpensesPage() {
                     <TableCell className="text-right font-medium">
                       <div className="flex items-center justify-end gap-1.5">
                         {expense.receipt_url && (
-                          <a
-                            href={expense.receipt_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => viewReceipt(expense.id)}
                             className="text-muted-foreground hover:text-foreground"
                             title="View receipt"
                           >
                             <Paperclip className="h-3.5 w-3.5" />
-                          </a>
+                          </button>
                         )}
                         ${Number(expense.amount).toFixed(2)}
                       </div>
