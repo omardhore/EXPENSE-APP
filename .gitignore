@@ -54,6 +54,8 @@ next-env.d.ts
 
 # Excluded by user
 .claude/
+CLAUDE.md
+AGENTS.md
 PRD.md
 tests/
 /supabase/
