@@ -11,11 +11,15 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, FileSpreadsheet, FileText, FileJson } from "lucide-react";
 import { format, subMonths } from "date-fns";
 import { toast } from "sonner";
 
+type DataType = "expenses" | "income";
+
 export default function ExportsPage() {
+  const [dataType, setDataType] = useState<DataType>("expenses");
   const [startDate, setStartDate] = useState(
     format(subMonths(new Date(), 1), "yyyy-MM-dd"),
   );
@@ -27,7 +31,7 @@ export default function ExportsPage() {
   async function handleExportJSON() {
     setExportingJSON(true);
     try {
-      const params = new URLSearchParams({ startDate, endDate });
+      const params = new URLSearchParams({ startDate, endDate, type: dataType });
       const res = await fetch(`/api/v1/exports/json?${params}`);
       if (!res.ok) throw new Error("Export failed");
 
@@ -38,7 +42,7 @@ export default function ExportsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `expenses_${startDate}_${endDate}.json`;
+      a.download = `${dataType}_${startDate}_${endDate}.json`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -54,7 +58,7 @@ export default function ExportsPage() {
   async function handleExportCSV() {
     setExportingCSV(true);
     try {
-      const params = new URLSearchParams({ startDate, endDate });
+      const params = new URLSearchParams({ startDate, endDate, type: dataType });
       const res = await fetch(`/api/v1/exports/csv?${params}`);
       if (!res.ok) throw new Error("Export failed");
 
@@ -62,7 +66,7 @@ export default function ExportsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `expenses_${startDate}_${endDate}.csv`;
+      a.download = `${dataType}_${startDate}_${endDate}.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -78,21 +82,20 @@ export default function ExportsPage() {
   async function handleExportPDF() {
     setExportingPDF(true);
     try {
-      // Fetch expense data from the API
-      const params = new URLSearchParams({
-        startDate,
-        endDate,
-      });
+      // Fetch data from the API for the selected type
+      const params = new URLSearchParams({ startDate, endDate, type: dataType });
       const res = await fetch(`/api/v1/exports/json?${params}`);
       const json = await res.json();
-      if (!json.success) throw new Error("Failed to fetch expenses");
+      if (!json.success) throw new Error("Failed to fetch data");
 
-      const expenses = json.data as Array<{
+      const isIncome = dataType === "income";
+      const records = json.data as Array<{
         date: string;
         description: string;
         amount: number;
-        payment_method: string;
-        categories: { name: string } | null;
+        payment_method?: string;
+        source?: string;
+        categories?: { name: string } | null;
       }>;
 
       // Dynamic import to keep bundle size down
@@ -103,7 +106,7 @@ export default function ExportsPage() {
 
       // Title
       doc.setFontSize(20);
-      doc.text("Expense Report", 14, 20);
+      doc.text(isIncome ? "Income Report" : "Expense Report", 14, 20);
 
       // Period subtitle
       doc.setFontSize(11);
@@ -111,26 +114,42 @@ export default function ExportsPage() {
       doc.text(`Period: ${startDate} to ${endDate}`, 14, 28);
 
       // Summary
-      const total = expenses.reduce((sum: number, e: { amount: number }) => sum + Number(e.amount), 0);
+      const total = records.reduce((sum: number, e: { amount: number }) => sum + Number(e.amount), 0);
       doc.setFontSize(12);
       doc.setTextColor(0);
-      doc.text(`Total Expenses: $${total.toFixed(2)}`, 14, 38);
-      doc.text(`Number of Transactions: ${expenses.length}`, 14, 46);
+      doc.text(
+        `Total ${isIncome ? "Income" : "Expenses"}: $${total.toFixed(2)}`,
+        14,
+        38,
+      );
+      doc.text(`Number of Entries: ${records.length}`, 14, 46);
 
       // Table
+      const head = isIncome
+        ? [["Date", "Description", "Source", "Amount"]]
+        : [["Date", "Description", "Category", "Payment", "Amount"]];
+      const body = records.map((e) =>
+        isIncome
+          ? [e.date, e.description, e.source ?? "-", `$${Number(e.amount).toFixed(2)}`]
+          : [
+              e.date,
+              e.description,
+              e.categories?.name ?? "-",
+              e.payment_method ?? "-",
+              `$${Number(e.amount).toFixed(2)}`,
+            ],
+      );
+      const foot = isIncome
+        ? [["", "", "Total", `$${total.toFixed(2)}`]]
+        : [["", "", "", "Total", `$${total.toFixed(2)}`]];
+
       autoTable(doc, {
         startY: 54,
-        head: [["Date", "Description", "Category", "Payment", "Amount"]],
-        body: expenses.map((e) => [
-          e.date,
-          e.description,
-          e.categories?.name ?? "-",
-          e.payment_method,
-          `$${Number(e.amount).toFixed(2)}`,
-        ]),
+        head,
+        body,
         styles: { fontSize: 9 },
         headStyles: { fillColor: [41, 41, 41] },
-        foot: [["", "", "", "Total", `$${total.toFixed(2)}`]],
+        foot,
         footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold" },
       });
 
@@ -147,7 +166,7 @@ export default function ExportsPage() {
         );
       }
 
-      doc.save(`expenses_${startDate}_${endDate}.pdf`);
+      doc.save(`${dataType}_${startDate}_${endDate}.pdf`);
       toast.success("PDF report generated successfully");
     } catch {
       toast.error("Failed to generate PDF");
@@ -158,11 +177,19 @@ export default function ExportsPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-3xl font-bold">Exports</h1>
-        <p className="text-muted-foreground">
-          Download your expense data
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Exports</h1>
+          <p className="text-muted-foreground">
+            Download your {dataType} data
+          </p>
+        </div>
+        <Tabs value={dataType} onValueChange={(v) => setDataType(v as DataType)}>
+          <TabsList>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="income">Income</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Date Range Selector */}
@@ -252,7 +279,7 @@ export default function ExportsPage() {
               PDF Report
             </CardTitle>
             <CardDescription>
-              Formatted report with summary and expense table
+              Formatted report with summary and {dataType} table
             </CardDescription>
           </CardHeader>
           <CardContent>

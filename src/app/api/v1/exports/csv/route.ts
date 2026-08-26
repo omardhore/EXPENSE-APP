@@ -10,11 +10,12 @@ export async function GET(request: NextRequest) {
 
   const startDate = request.nextUrl.searchParams.get("startDate");
   const endDate = request.nextUrl.searchParams.get("endDate");
+  const type = request.nextUrl.searchParams.get("type") === "income" ? "income" : "expenses";
 
   const supabase = await createClient();
   let query = supabase
-    .from("expenses")
-    .select("*, categories(name)")
+    .from(type)
+    .select(type === "income" ? "*" : "*, categories(name)")
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("date", { ascending: false });
@@ -34,42 +35,63 @@ export async function GET(request: NextRequest) {
   const csvCell = (v: unknown) =>
     `"${sanitizeCsvField(String(v ?? "")).replace(/"/g, '""')}"`;
 
-  // Build CSV
-  const headers = [
-    "Date",
-    "Description",
-    "Amount",
-    "Category",
-    "Payment Method",
-    "Notes",
-    "Tags",
-  ];
-  type ExpenseRow = {
-    date: string;
-    description: string;
-    amount: number;
-    categories: { name: string } | null;
-    payment_method: string;
-    notes: string | null;
-    tags: string[] | null;
-  };
-  const expenses = (data ?? []) as unknown as ExpenseRow[];
-  const rows = expenses.map((e) => [
-    csvCell(e.date),
-    csvCell(e.description),
-    csvCell(e.amount),
-    csvCell(e.categories?.name ?? ""),
-    csvCell(e.payment_method),
-    csvCell(e.notes ?? ""),
-    csvCell((e.tags ?? []).join(", ")),
-  ]);
+  let headers: string[];
+  let rows: string[][];
+
+  if (type === "income") {
+    headers = ["Date", "Description", "Amount", "Source", "Notes"];
+    type IncomeRow = {
+      date: string;
+      description: string;
+      amount: number;
+      source: string;
+      notes: string | null;
+    };
+    const income = (data ?? []) as unknown as IncomeRow[];
+    rows = income.map((e) => [
+      csvCell(e.date),
+      csvCell(e.description),
+      csvCell(e.amount),
+      csvCell(e.source),
+      csvCell(e.notes ?? ""),
+    ]);
+  } else {
+    headers = [
+      "Date",
+      "Description",
+      "Amount",
+      "Category",
+      "Payment Method",
+      "Notes",
+      "Tags",
+    ];
+    type ExpenseRow = {
+      date: string;
+      description: string;
+      amount: number;
+      categories: { name: string } | null;
+      payment_method: string;
+      notes: string | null;
+      tags: string[] | null;
+    };
+    const expenses = (data ?? []) as unknown as ExpenseRow[];
+    rows = expenses.map((e) => [
+      csvCell(e.date),
+      csvCell(e.description),
+      csvCell(e.amount),
+      csvCell(e.categories?.name ?? ""),
+      csvCell(e.payment_method),
+      csvCell(e.notes ?? ""),
+      csvCell((e.tags ?? []).join(", ")),
+    ]);
+  }
 
   const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
 
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv",
-      "Content-Disposition": `attachment; filename="expenses.csv"`,
+      "Content-Disposition": `attachment; filename="${type}.csv"`,
     },
   });
 }

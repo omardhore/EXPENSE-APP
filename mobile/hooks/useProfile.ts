@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { getCurrentUser, requireUserId } from "@/lib/session";
 import { updateProfileSchema, firstZodMessage } from "@/lib/schemas";
 
 export function useProfile() {
@@ -10,9 +11,7 @@ export function useProfile() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (user) {
       setEmail(user.email ?? "");
       setName(user.user_metadata?.name ?? "");
@@ -35,10 +34,7 @@ export function useProfile() {
       throw new Error(firstZodMessage(parsed.error));
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error("Not authenticated");
+    const userId = await requireUserId();
 
     const { error: authError } = await supabase.auth.updateUser({
       data: { name: parsed.data.name },
@@ -51,7 +47,7 @@ export function useProfile() {
         currency: parsed.data.currency,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", user.id);
+      .eq("id", userId);
     if (dbError) throw new Error(dbError.message);
 
     setName(parsed.data.name);

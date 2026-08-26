@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { requireUserId } from "@/lib/session";
 import type { Category } from "@/lib/database.types";
 
 export function useCategories() {
@@ -31,14 +32,11 @@ export function useCategories() {
     icon?: string | null;
     color?: string | null;
   }) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error("Not authenticated");
+    const userId = await requireUserId();
 
     const { data, error } = await supabase
       .from("categories")
-      .insert({ ...input, user_id: user.id })
+      .insert({ ...input, user_id: userId })
       .select()
       .single();
     if (error) throw new Error(error.message);

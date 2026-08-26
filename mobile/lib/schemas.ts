@@ -7,6 +7,14 @@
 import { z } from "zod";
 
 export const paymentMethods = ["cash", "credit", "debit", "other"] as const;
+export const incomeSources = [
+  "salary",
+  "freelance",
+  "investment",
+  "gift",
+  "refund",
+  "other",
+] as const;
 export const recurringFrequencies = ["weekly", "monthly", "yearly"] as const;
 export const budgetPeriods = ["monthly", "quarterly", "yearly"] as const;
 export const currencies = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "INR"] as const;
@@ -28,6 +36,22 @@ export const createExpenseSchema = z.object({
 });
 
 export const updateExpenseSchema = createExpenseSchema.partial();
+
+// --- Income (mirrors src/lib/schemas/income.ts) ---
+export const createIncomeSchema = z.object({
+  amount: z.number().positive("Amount must be greater than zero"),
+  description: z
+    .string()
+    .min(1, "Description is required")
+    .max(255, "Description must be 255 characters or less"),
+  date: z.string().date("Invalid date format"),
+  source: z.enum(incomeSources).default("other"),
+  notes: z.string().max(1000, "Notes must be 1000 characters or less").nullable().optional(),
+  is_recurring: z.boolean().default(false),
+  recurring_frequency: z.enum(recurringFrequencies).nullable().optional(),
+});
+
+export const updateIncomeSchema = createIncomeSchema.partial();
 
 // --- Budget (mirrors src/lib/schemas/budget.ts) ---
 export const createBudgetSchema = z.object({

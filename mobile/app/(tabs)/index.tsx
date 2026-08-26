@@ -7,7 +7,8 @@ import { useBudgets } from "@/hooks/useBudgets";
 import { useProfile } from "@/hooks/useProfile";
 
 export default function DashboardScreen() {
-  const { monthTotal, categoryTotals, loading, error, refetch } = useDashboard();
+  const { monthTotal, incomeTotal, netTotal, categoryTotals, loading, error, refetch } =
+    useDashboard();
   const { budgets, spending, refetch: refetchBudgets } = useBudgets();
   const { currency } = useProfile();
   const [refreshing, setRefreshing] = useState(false);
@@ -56,10 +57,30 @@ export default function DashboardScreen() {
         </View>
       )}
 
+      <View style={styles.summaryRow}>
+        <View
+          style={[styles.card, styles.summaryCard, { backgroundColor: card, borderColor: border }]}
+        >
+          <Text style={[styles.label, { color: muted }]}>Income</Text>
+          <Text style={[styles.mediumNumber, { color: "#059669" }]}>
+            {currency} {incomeTotal.toFixed(2)}
+          </Text>
+        </View>
+        <View
+          style={[styles.card, styles.summaryCard, { backgroundColor: card, borderColor: border }]}
+        >
+          <Text style={[styles.label, { color: muted }]}>Spending</Text>
+          <Text style={styles.mediumNumber}>
+            {currency} {monthTotal.toFixed(2)}
+          </Text>
+        </View>
+      </View>
+
       <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
-        <Text style={[styles.label, { color: muted }]}>This month</Text>
-        <Text style={styles.bigNumber}>
-          {currency} {monthTotal.toFixed(2)}
+        <Text style={[styles.label, { color: muted }]}>Net this month</Text>
+        <Text style={[styles.bigNumber, { color: netTotal >= 0 ? "#059669" : danger }]}>
+          {netTotal < 0 ? "-" : ""}
+          {currency} {Math.abs(netTotal).toFixed(2)}
         </Text>
       </View>
 
@@ -129,6 +150,17 @@ const styles = StyleSheet.create({
   },
   bigNumber: {
     fontSize: 32,
+    fontWeight: "700",
+  },
+  summaryRow: {
+    flexDirection: "row",
+    gap: 14,
+  },
+  summaryCard: {
+    flex: 1,
+  },
+  mediumNumber: {
+    fontSize: 22,
     fontWeight: "700",
   },
   sectionTitle: {

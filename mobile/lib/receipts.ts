@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { requireUserId } from "@/lib/session";
 
 const SIGNED_URL_TTL_SECONDS = 120;
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB — matches the web route's cap.
@@ -19,17 +20,14 @@ export async function uploadReceipt(expenseId: string, localUri: string, mimeTyp
     throw new Error("Only JPEG or PNG receipts are supported");
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  const userId = await requireUserId();
 
   const arraybuffer = await fetch(localUri).then((res) => res.arrayBuffer());
   if (arraybuffer.byteLength > MAX_SIZE) {
     throw new Error("File size exceeds 10MB limit");
   }
 
-  const path = `${user.id}/${expenseId}.${ext}`;
+  const path = `${userId}/${expenseId}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from("receipts")
@@ -40,7 +38,7 @@ export async function uploadReceipt(expenseId: string, localUri: string, mimeTyp
     .from("expenses")
     .update({ receipt_url: path, updated_at: new Date().toISOString() })
     .eq("id", expenseId)
-    .eq("user_id", user.id);
+    .eq("user_id", userId);
   if (updateError) throw new Error(updateError.message);
 
   return path;
