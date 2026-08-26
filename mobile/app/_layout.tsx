@@ -54,7 +54,6 @@ function RootLayoutNav() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
       <Stack>
-        <Stack.Screen name="reset-password" options={{ title: "Reset Password" }} />
         <Stack.Protected guard={!!session}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="expense/[id]" options={{ presentation: "modal", title: "Expense" }} />
@@ -67,6 +66,11 @@ function RootLayoutNav() {
         <Stack.Protected guard={!session}>
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         </Stack.Protected>
+        {/* Declared last so it is never the fallback initial route when the
+            (tabs) initialRouteName is guarded out (logged-out state).
+            Otherwise this screen mounts on launch / right after login and its
+            no-recovery-token effect signs the user straight back out. */}
+        <Stack.Screen name="reset-password" options={{ title: "Reset Password" }} />
       </Stack>
     </ThemeProvider>
   );
