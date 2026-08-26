@@ -20,7 +20,8 @@ export async function GET() {
     .single();
 
   if (dbError) {
-    return errorResponse("DATABASE_ERROR", dbError.message, 500);
+    console.error("[profile:GET] database error:", dbError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   return successResponse({
@@ -31,7 +32,7 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
-  const { user, error } = await getAuthenticatedUser();
+  const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
   const body = await request.json();
@@ -52,7 +53,8 @@ export async function PUT(request: NextRequest) {
     data: { name },
   });
   if (authUpdateError) {
-    return errorResponse("AUTH_ERROR", authUpdateError.message, 500);
+    console.error("[profile:PUT] auth update error:", authUpdateError);
+    return errorResponse("AUTH_ERROR", "An error occurred", 500);
   }
 
   const { error: dbError } = await supabase
@@ -60,7 +62,8 @@ export async function PUT(request: NextRequest) {
     .update({ currency, updated_at: new Date().toISOString() })
     .eq("id", user.id);
   if (dbError) {
-    return errorResponse("DATABASE_ERROR", dbError.message, 500);
+    console.error("[profile:PUT] database error:", dbError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   return successResponse({ name, currency });

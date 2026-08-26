@@ -7,7 +7,7 @@ import { useBudgets } from "@/hooks/useBudgets";
 import { useProfile } from "@/hooks/useProfile";
 
 export default function DashboardScreen() {
-  const { monthTotal, categoryTotals, loading, refetch } = useDashboard();
+  const { monthTotal, categoryTotals, loading, error, refetch } = useDashboard();
   const { budgets, spending, refetch: refetchBudgets } = useBudgets();
   const { currency } = useProfile();
   const [refreshing, setRefreshing] = useState(false);
@@ -34,7 +34,9 @@ export default function DashboardScreen() {
 
   const warnings = budgets.filter((b) => {
     const spent = spending[b.id] ?? 0;
-    return spent / Number(b.limit_amount) >= Number(b.alert_threshold);
+    // alert_threshold is stored as an integer percent (1-100), matching the
+    // web schema, so compare against the spent/limit ratio scaled to 0-1.
+    return spent / Number(b.limit_amount) >= Number(b.alert_threshold) / 100;
   });
 
   const maxCategoryTotal = Math.max(1, ...categoryTotals.map((c) => c.total));
@@ -42,11 +44,17 @@ export default function DashboardScreen() {
   return (
     <ScrollView
       contentContainerStyle={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <Text style={styles.title}>Dashboard</Text>
+
+      {error && (
+        <View style={[styles.card, { backgroundColor: dangerBg, borderColor: danger }]}>
+          <Text style={{ color: danger }}>
+            Couldn&apos;t load this month&apos;s summary. Pull to refresh.
+          </Text>
+        </View>
+      )}
 
       <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
         <Text style={[styles.label, { color: muted }]}>This month</Text>
@@ -62,8 +70,8 @@ export default function DashboardScreen() {
             const spent = spending[b.id] ?? 0;
             return (
               <Text key={b.id} style={{ color: danger }}>
-                {b.categories?.name ?? "Overall"}: {currency} {spent.toFixed(2)} of{" "}
-                {currency} {Number(b.limit_amount).toFixed(2)}
+                {b.categories?.name ?? "Overall"}: {currency} {spent.toFixed(2)} of {currency}{" "}
+                {Number(b.limit_amount).toFixed(2)}
               </Text>
             );
           })}

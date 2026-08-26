@@ -7,7 +7,7 @@ import { useBudgets } from "@/hooks/useBudgets";
 import { useProfile } from "@/hooks/useProfile";
 
 export default function BudgetsScreen() {
-  const { budgets, spending, loading, refetch } = useBudgets();
+  const { budgets, spending, loading, error, refetch } = useBudgets();
   const { currency } = useProfile();
   const card = useThemeColor({}, "card");
   const border = useThemeColor({}, "border");
@@ -32,8 +32,16 @@ export default function BudgetsScreen() {
         onRefresh={refetch}
         ListEmptyComponent={
           !loading ? (
-            <Text style={{ color: muted, textAlign: "center", marginTop: 40 }}>
-              No budgets yet. Tap + to add one.
+            <Text
+              style={{
+                color: error ? danger : muted,
+                textAlign: "center",
+                marginTop: 40,
+              }}
+            >
+              {error
+                ? "Couldn't load budgets. Pull to refresh."
+                : "No budgets yet. Tap + to add one."}
             </Text>
           ) : null
         }

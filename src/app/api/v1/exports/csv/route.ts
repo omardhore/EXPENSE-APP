@@ -5,7 +5,7 @@ import { errorResponse } from "@/lib/api/response";
 import { sanitizeCsvField } from "@/lib/utils/csv";
 
 export async function GET(request: NextRequest) {
-  const { user, error } = await getAuthenticatedUser();
+  const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
   const startDate = request.nextUrl.searchParams.get("startDate");
@@ -25,8 +25,14 @@ export async function GET(request: NextRequest) {
   const { data, error: dbError } = await query;
 
   if (dbError) {
-    return errorResponse("DATABASE_ERROR", dbError.message, 500);
+    console.error("[exports/csv] database error:", dbError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
+
+  // Wraps a cell in quotes and neutralizes both formula injection and any
+  // embedded quotes/commas/newlines so no field can break out of its column.
+  const csvCell = (v: unknown) =>
+    `"${sanitizeCsvField(String(v ?? "")).replace(/"/g, '""')}"`;
 
   // Build CSV
   const headers = [
@@ -49,13 +55,13 @@ export async function GET(request: NextRequest) {
   };
   const expenses = (data ?? []) as unknown as ExpenseRow[];
   const rows = expenses.map((e) => [
-    e.date,
-    `"${sanitizeCsvField(e.description).replace(/"/g, '""')}"`,
-    e.amount,
-    sanitizeCsvField(e.categories?.name ?? ""),
-    e.payment_method,
-    `"${sanitizeCsvField(e.notes ?? "").replace(/"/g, '""')}"`,
-    `"${sanitizeCsvField((e.tags ?? []).join(", "))}"`,
+    csvCell(e.date),
+    csvCell(e.description),
+    csvCell(e.amount),
+    csvCell(e.categories?.name ?? ""),
+    csvCell(e.payment_method),
+    csvCell(e.notes ?? ""),
+    csvCell((e.tags ?? []).join(", ")),
   ]);
 
   const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");

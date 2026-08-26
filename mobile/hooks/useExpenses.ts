@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Expense, PaymentMethod, RecurringFrequency } from "@/lib/database.types";
 
@@ -35,11 +35,32 @@ export function useExpenses(filters: ExpenseFilters = {}) {
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
 
+  // Guards against overlapping append fetches (the `loading` flag is only
+  // set for "replace", so it can't gate appends) and lets us discard
+  // responses whose filter set is no longer current.
+  const appendingRef = useRef(false);
+  const filterSig = `${filters.startDate ?? ""}|${filters.endDate ?? ""}|${filters.category ?? ""}`;
+  const filterSigRef = useRef(filterSig);
+  // Keep the ref in sync via an effect (never mutate a ref during render).
+  // Declared before the fetch effect below so the signature is already current
+  // when a filter change triggers a new fetch.
+  useEffect(() => {
+    filterSigRef.current = filterSig;
+  }, [filterSig]);
+
   const fetchExpenses = useCallback(
     async (targetPage: number, mode: "replace" | "append") => {
-      if (mode === "replace") setLoading(true);
+      if (mode === "append") {
+        if (appendingRef.current) return;
+        appendingRef.current = true;
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
+      // Capture the filter signature at request time so a response that
+      // arrives after the filters changed can be discarded.
+      const requestSig = filterSigRef.current;
       const offset = (targetPage - 1) * PAGE_SIZE;
       let query = supabase
         .from("expenses")
@@ -53,6 +74,13 @@ export function useExpenses(filters: ExpenseFilters = {}) {
       if (filters.category) query = query.eq("category_id", filters.category);
 
       const { data, error, count } = await query;
+
+      if (mode === "append") appendingRef.current = false;
+
+      // Stale response for a filter set that's no longer active — drop it.
+      if (requestSig !== filterSigRef.current) {
+        return;
+      }
 
       if (error) {
         setError(error.message);
@@ -80,7 +108,7 @@ export function useExpenses(filters: ExpenseFilters = {}) {
   }
 
   function loadMore() {
-    if (!loading && hasMore) {
+    if (!loading && !appendingRef.current && hasMore) {
       fetchExpenses(page + 1, "append");
     }
   }

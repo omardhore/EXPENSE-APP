@@ -122,12 +122,10 @@ export default function ExpensesPage() {
         }
         toast.success("Expense updated successfully");
       } else {
-        await addExpense(data);
-        // Upload receipt to the newly created expense
-        const state = useExpenseStore.getState();
-        const newest = state.expenses[0];
-        if (receiptFile && newest) {
-          await uploadReceipt(newest.id, receiptFile);
+        // Upload receipt to the newly created expense using its returned id
+        const created = await addExpense(data);
+        if (receiptFile && created) {
+          await uploadReceipt(created.id, receiptFile);
         }
         toast.success("Expense added successfully");
       }

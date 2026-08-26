@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
-import { ActivityIndicator } from "react-native";
-import { View } from "@/components/Themed";
+import { ActivityIndicator, StyleSheet } from "react-native";
+import { Text, View } from "@/components/Themed";
 import { BudgetForm } from "@/components/BudgetForm";
 import { supabase } from "@/lib/supabase";
 import type { BudgetWithCategory, BudgetInput } from "@/hooks/useBudgets";
@@ -10,18 +10,28 @@ export default function EditBudgetScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [budget, setBudget] = useState<BudgetWithCategory | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let ignore = false;
     async function load() {
-      const { data } = await supabase
+      const { data, error: dbError } = await supabase
         .from("budgets")
         .select("*, categories(name, icon, color)")
         .eq("id", id)
         .single();
-      setBudget(data as unknown as BudgetWithCategory);
+      if (ignore) return;
+      if (dbError) {
+        setError(dbError.message);
+      } else {
+        setBudget(data as unknown as BudgetWithCategory);
+      }
       setLoading(false);
     }
     load();
+    return () => {
+      ignore = true;
+    };
   }, [id]);
 
   if (loading) {
@@ -32,7 +42,15 @@ export default function EditBudgetScreen() {
     );
   }
 
-  if (!budget) return null;
+  if (error || !budget) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.message}>
+          {error ? "Couldn't load this budget." : "Budget not found."}
+        </Text>
+      </View>
+    );
+  }
 
   async function handleSubmit(input: BudgetInput) {
     const { data, error } = await supabase
@@ -61,3 +79,16 @@ export default function EditBudgetScreen() {
     />
   );
 }
+
+const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  message: {
+    textAlign: "center",
+    opacity: 0.7,
+  },
+});

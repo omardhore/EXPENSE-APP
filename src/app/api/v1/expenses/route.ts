@@ -12,7 +12,7 @@ import {
 } from "@/lib/schemas/expense";
 
 export async function GET(request: NextRequest) {
-  const { user, error } = await getAuthenticatedUser();
+  const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
   const searchParams = Object.fromEntries(request.nextUrl.searchParams);
@@ -80,7 +80,8 @@ export async function GET(request: NextRequest) {
   const { data, error: dbError, count } = await query;
 
   if (dbError) {
-    return errorResponse("DATABASE_ERROR", dbError.message, 500);
+    console.error("[expenses:GET] database error:", dbError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   const total = count ?? 0;
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { user, error } = await getAuthenticatedUser();
+  const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
   const body = await request.json();
@@ -115,7 +116,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (dbError) {
-    return errorResponse("DATABASE_ERROR", dbError.message, 500);
+    console.error("[expenses:POST] database error:", dbError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   return successResponse(data, 201);

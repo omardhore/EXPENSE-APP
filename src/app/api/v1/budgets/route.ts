@@ -20,14 +20,15 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (dbError) {
-    return errorResponse("DATABASE_ERROR", dbError.message, 500);
+    console.error("[budgets:GET] database error:", dbError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   return successResponse(data);
 }
 
 export async function POST(request: NextRequest) {
-  const { user, error } = await getAuthenticatedUser();
+  const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
   const body = await request.json();
@@ -49,7 +50,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (dbError) {
-    return errorResponse("DATABASE_ERROR", dbError.message, 500);
+    console.error("[budgets:POST] database error:", dbError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   return successResponse(data, 201);

@@ -1,22 +1,18 @@
 import type { NextConfig } from "next";
+import withPWAInit from "@ducanh2912/next-pwa";
 
-const withPWA = require("@ducanh2912/next-pwa").default({
+const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
-  skipWaiting: true,
+  // skipWaiting is a Workbox option, not a top-level one; the previous
+  // top-level placement was silently ignored (the require() import was
+  // untyped). Placing it here activates a new service worker immediately.
+  workboxOptions: {
+    skipWaiting: true,
+  },
 });
 
-const nextConfig: NextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "*.supabase.co",
-        pathname: "/storage/v1/object/public/**",
-      },
-    ],
-  },
-};
+const nextConfig: NextConfig = {};
 
 export default withPWA(nextConfig);

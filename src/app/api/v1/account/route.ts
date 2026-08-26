@@ -8,13 +8,18 @@ import { deleteUserData } from "@/lib/api/deleteUserData";
 // token) — see lib/api/auth.ts. Uses the service-role admin client
 // throughout, since removing the auth user itself requires it anyway.
 export async function DELETE(request: NextRequest) {
+  // TODO(security): rate-limit + require recent re-auth. This handler runs
+  // through the service-role admin client and permanently deletes the auth
+  // user, all rows, and receipt files. Deferred: needs infra (rate limiter +
+  // step-up auth) not available in this environment.
   const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
   const admin = createAdminClient();
   const dataError = await deleteUserData(admin, user.id);
   if (dataError) {
-    return errorResponse("DATABASE_ERROR", dataError.message, 500);
+    console.error("[account:DELETE] data deletion error:", dataError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   const { error: profileError } = await admin
@@ -22,14 +27,16 @@ export async function DELETE(request: NextRequest) {
     .delete()
     .eq("id", user.id);
   if (profileError) {
-    return errorResponse("DATABASE_ERROR", profileError.message, 500);
+    console.error("[account:DELETE] profile deletion error:", profileError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   const { error: authDeleteError } = await admin.auth.admin.deleteUser(
     user.id,
   );
   if (authDeleteError) {
-    return errorResponse("DATABASE_ERROR", authDeleteError.message, 500);
+    console.error("[account:DELETE] auth deletion error:", authDeleteError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   return successResponse({ deleted: true });

@@ -13,7 +13,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await getAuthenticatedUser();
+  const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
   const { id } = await params;
@@ -41,17 +41,18 @@ export async function PUT(
     if (dbError.code === "PGRST116") {
       return notFoundResponse("Category");
     }
-    return errorResponse("DATABASE_ERROR", dbError.message, 500);
+    console.error("[categories/[id]:PUT] database error:", dbError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   return successResponse(data);
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await getAuthenticatedUser();
+  const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
   const { id } = await params;
@@ -63,7 +64,8 @@ export async function DELETE(
     .eq("user_id", user.id);
 
   if (dbError) {
-    return errorResponse("DATABASE_ERROR", dbError.message, 500);
+    console.error("[categories/[id]:DELETE] database error:", dbError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   return successResponse({ deleted: true });

@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:types:note": "echo \"Regenerate BOTH copies together: src/lib/types/database.ts AND mobile/lib/database.types.ts must stay in sync (no shared workspace). Run 'npm run db:types' then copy the output into mobile/lib/database.types.ts, preserving its header comment.\"",
+    "db:types": "supabase gen types typescript --project-id <YOUR_SUPABASE_PROJECT_REF> --schema public > src/lib/types/database.ts"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.6",

@@ -6,6 +6,7 @@ import { Text, View, useThemeColor } from "@/components/Themed";
 import { Field } from "@/components/Field";
 import { Button } from "@/components/Button";
 import { useCategories } from "@/hooks/useCategories";
+import { createBudgetSchema, firstZodMessage } from "@/lib/schemas";
 import type { BudgetPeriod } from "@/lib/database.types";
 import type { BudgetInput, BudgetWithCategory } from "@/hooks/useBudgets";
 
@@ -22,11 +23,10 @@ export function BudgetForm({ initial, submitLabel, onSubmit, onDelete }: Props) 
   const { categories } = useCategories();
   const [categoryId, setCategoryId] = useState(initial?.category_id ?? "");
   const [period, setPeriod] = useState<BudgetPeriod>(initial?.period ?? "monthly");
-  const [limitAmount, setLimitAmount] = useState(
-    initial ? String(initial.limit_amount) : "",
-  );
+  const [limitAmount, setLimitAmount] = useState(initial ? String(initial.limit_amount) : "");
+  // alert_threshold is an integer percent (1-100), matching the web schema.
   const [alertThreshold, setAlertThreshold] = useState(
-    initial ? String(Number(initial.alert_threshold) * 100) : "80",
+    initial ? String(initial.alert_threshold) : "80",
   );
   const [startDate, setStartDate] = useState(
     initial?.start_date ?? format(new Date(), "yyyy-MM-dd"),
@@ -36,22 +36,29 @@ export function BudgetForm({ initial, submitLabel, onSubmit, onDelete }: Props) 
   const muted = useThemeColor({}, "muted");
 
   async function handleSubmit() {
-    const limit = Number(limitAmount);
-    const threshold = Number(alertThreshold) / 100;
-    if (!Number.isFinite(limit) || limit <= 0) {
-      Alert.alert("Invalid limit", "Enter a positive budget limit.");
+    const parsed = createBudgetSchema.safeParse({
+      category_id: categoryId || null,
+      period,
+      limit_amount: Number(limitAmount),
+      alert_threshold: Number(alertThreshold),
+      start_date: startDate,
+      end_date: null,
+    });
+    if (!parsed.success) {
+      Alert.alert("Invalid input", firstZodMessage(parsed.error));
       return;
     }
+    const input: BudgetInput = {
+      category_id: parsed.data.category_id ?? null,
+      period: parsed.data.period,
+      limit_amount: parsed.data.limit_amount,
+      alert_threshold: parsed.data.alert_threshold,
+      start_date: parsed.data.start_date,
+      end_date: parsed.data.end_date ?? null,
+    };
     setSaving(true);
     try {
-      await onSubmit({
-        category_id: categoryId || null,
-        period,
-        limit_amount: limit,
-        alert_threshold: threshold,
-        start_date: startDate,
-        end_date: null,
-      });
+      await onSubmit(input);
     } catch (err) {
       Alert.alert("Error", err instanceof Error ? err.message : "Failed to save");
     } finally {
@@ -117,15 +124,9 @@ export function BudgetForm({ initial, submitLabel, onSubmit, onDelete }: Props) 
         placeholder="YYYY-MM-DD"
       />
 
-      <Button
-        title={saving ? "Saving..." : submitLabel}
-        onPress={handleSubmit}
-        loading={saving}
-      />
+      <Button title={saving ? "Saving..." : submitLabel} onPress={handleSubmit} loading={saving} />
 
-      {onDelete && (
-        <Button title="Delete budget" variant="outline" onPress={handleDelete} />
-      )}
+      {onDelete && <Button title="Delete budget" variant="outline" onPress={handleDelete} />}
     </ScrollView>
   );
 }

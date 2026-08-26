@@ -13,19 +13,29 @@ export function useDashboard() {
   const [monthTotal, setMonthTotal] = useState(0);
   const [categoryTotals, setCategoryTotals] = useState<CategoryTotal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchSummary = useCallback(async () => {
     setLoading(true);
+    setError(null);
     const now = new Date();
     const from = startOfMonth(now).toISOString().split("T")[0];
     const to = endOfMonth(now).toISOString().split("T")[0];
 
-    const { data } = await supabase
+    const { data, error: dbError } = await supabase
       .from("expenses")
       .select("amount, category_id, categories(name, color)")
       .is("deleted_at", null)
       .gte("date", from)
       .lte("date", to);
+
+    if (dbError) {
+      // Distinguish a failed query from a genuinely empty month so the UI
+      // doesn't misreport $0.00 spending on a transient error.
+      setError(dbError.message);
+      setLoading(false);
+      return;
+    }
 
     const rows = (data ?? []) as unknown as Array<{
       amount: number;
@@ -53,9 +63,7 @@ export function useDashboard() {
     }
 
     setMonthTotal(total);
-    setCategoryTotals(
-      Array.from(byCategory.values()).sort((a, b) => b.total - a.total),
-    );
+    setCategoryTotals(Array.from(byCategory.values()).sort((a, b) => b.total - a.total));
     setLoading(false);
   }, []);
 
@@ -63,5 +71,5 @@ export function useDashboard() {
     fetchSummary();
   }, [fetchSummary]);
 
-  return { monthTotal, categoryTotals, loading, refetch: fetchSummary };
+  return { monthTotal, categoryTotals, loading, error, refetch: fetchSummary };
 }

@@ -1,6 +1,19 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Mirrors the { success:false, error:{ code,message }, meta } shape from
+// lib/api/response.ts so middleware-level API rejections match route errors.
+function jsonError(code: string, message: string, status: number) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: { code, message },
+      meta: { timestamp: new Date().toISOString() },
+    },
+    { status },
+  );
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -32,6 +45,48 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const isApiPath = request.nextUrl.pathname.startsWith("/api/");
+
+  // For API paths, enforce a basic CSRF defense and return structured JSON
+  // instead of HTML redirects. State-changing methods must originate from a
+  // same-origin request; cross-origin (or origin-less) mutations are rejected.
+  if (isApiPath) {
+    const method = request.method.toUpperCase();
+    const isStateChanging =
+      method === "POST" ||
+      method === "PUT" ||
+      method === "PATCH" ||
+      method === "DELETE";
+
+    if (isStateChanging) {
+      const secFetchSite = request.headers.get("sec-fetch-site");
+      let sameOrigin: boolean;
+      if (secFetchSite) {
+        // Modern browsers send this; "same-origin"/"none" are trusted.
+        sameOrigin = secFetchSite === "same-origin" || secFetchSite === "none";
+      } else {
+        // Fall back to comparing the Origin header against the request origin.
+        const origin = request.headers.get("origin");
+        sameOrigin = origin === request.nextUrl.origin;
+      }
+
+      if (!sameOrigin) {
+        return jsonError(
+          "FORBIDDEN",
+          "Cross-origin request rejected",
+          403,
+        );
+      }
+    }
+
+    if (!user) {
+      return jsonError("UNAUTHORIZED", "Authentication required", 401);
+    }
+
+    // Authenticated API requests bypass the page-redirect logic below.
+    return supabaseResponse;
+  }
 
   // Redirect unauthenticated users to login (except for auth pages and PWA files)
   const isAuthPage =

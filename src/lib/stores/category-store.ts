@@ -26,7 +26,8 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     try {
       const res = await fetch("/api/v1/categories");
       const json = await res.json();
-      if (!json.success) throw new Error(json.error.message);
+      if (!res.ok || !json.success)
+        throw new Error(json?.error?.message ?? "Request failed");
       set({ categories: json.data, loading: false });
     } catch (err) {
       set({
@@ -45,7 +46,8 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error.message);
+      if (!res.ok || !json.success)
+        throw new Error(json?.error?.message ?? "Request failed");
       set({ categories: [...get().categories, json.data] });
     } catch (err) {
       set({
@@ -64,7 +66,8 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error.message);
+      if (!res.ok || !json.success)
+        throw new Error(json?.error?.message ?? "Request failed");
       set({
         categories: get().categories.map((c) =>
           c.id === id ? json.data : c,
@@ -86,13 +89,15 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
         method: "DELETE",
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error.message);
+      if (!res.ok || !json.success)
+        throw new Error(json?.error?.message ?? "Request failed");
       set({ categories: get().categories.filter((c) => c.id !== id) });
     } catch (err) {
       set({
         error:
           err instanceof Error ? err.message : "Failed to delete category",
       });
+      throw err;
     }
   },
 }));

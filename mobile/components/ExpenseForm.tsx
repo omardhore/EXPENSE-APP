@@ -8,11 +8,8 @@ import { Field } from "@/components/Field";
 import { Button } from "@/components/Button";
 import { useCategories } from "@/hooks/useCategories";
 import { uploadReceipt, getReceiptSignedUrl } from "@/lib/receipts";
-import { supabase } from "@/lib/supabase";
-import type {
-  PaymentMethod,
-  RecurringFrequency,
-} from "@/lib/database.types";
+import { createExpenseSchema, firstZodMessage } from "@/lib/schemas";
+import type { PaymentMethod, RecurringFrequency } from "@/lib/database.types";
 import type { ExpenseInput } from "@/hooks/useExpenses";
 import type { ExpenseWithCategory } from "@/hooks/useExpenses";
 
@@ -30,12 +27,8 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
   const { categories } = useCategories();
   const [description, setDescription] = useState(initial?.description ?? "");
   const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
-  const [date, setDate] = useState(
-    initial?.date ?? format(new Date(), "yyyy-MM-dd"),
-  );
-  const [categoryId, setCategoryId] = useState<string>(
-    initial?.category_id ?? "",
-  );
+  const [date, setDate] = useState(initial?.date ?? format(new Date(), "yyyy-MM-dd"));
+  const [categoryId, setCategoryId] = useState<string>(initial?.category_id ?? "");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
     initial?.payment_method ?? "other",
   );
@@ -79,47 +72,45 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
   }
 
   async function handleSubmit() {
-    if (!description.trim() || !amount) {
-      Alert.alert("Missing info", "Description and amount are required.");
-      return;
-    }
-    const parsedAmount = Number(amount);
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert("Invalid amount", "Amount must be a positive number.");
+    const parsed = createExpenseSchema.safeParse({
+      description: description.trim(),
+      amount: Number(amount),
+      date,
+      category_id: categoryId || null,
+      payment_method: paymentMethod,
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      notes: notes.trim() || null,
+      is_recurring: isRecurring,
+      recurring_frequency: isRecurring ? frequency : null,
+    });
+    if (!parsed.success) {
+      Alert.alert("Invalid input", firstZodMessage(parsed.error));
       return;
     }
 
+    const input: ExpenseInput = {
+      description: parsed.data.description,
+      amount: parsed.data.amount,
+      date: parsed.data.date,
+      category_id: parsed.data.category_id ?? null,
+      payment_method: parsed.data.payment_method,
+      tags: parsed.data.tags,
+      notes: parsed.data.notes ?? null,
+      is_recurring: parsed.data.is_recurring,
+      recurring_frequency: parsed.data.recurring_frequency ?? null,
+    };
+
     setSaving(true);
     try {
-      const result = await onSubmit({
-        description: description.trim(),
-        amount: parsedAmount,
-        date,
-        category_id: categoryId || null,
-        payment_method: paymentMethod,
-        tags: tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-        notes: notes.trim() || null,
-        is_recurring: isRecurring,
-        recurring_frequency: isRecurring ? frequency : null,
-      });
+      const result = await onSubmit(input);
 
       const expenseId = result && "id" in result ? result.id : initial?.id;
       if (pickedImage && expenseId) {
         setUploadingReceipt(true);
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          await uploadReceipt(
-            user.id,
-            expenseId,
-            pickedImage.uri,
-            pickedImage.mimeType ?? "image/jpeg",
-          );
-        }
+        await uploadReceipt(expenseId, pickedImage.uri, pickedImage.mimeType ?? "image/jpeg");
       }
     } catch (err) {
       Alert.alert("Error", err instanceof Error ? err.message : "Failed to save");
@@ -156,12 +147,7 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
         keyboardType="decimal-pad"
         placeholder="0.00"
       />
-      <Field
-        label="Date"
-        value={date}
-        onChangeText={setDate}
-        placeholder="YYYY-MM-DD"
-      />
+      <Field label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" />
 
       <View style={styles.fieldGroup}>
         <Text style={[styles.label, { color: muted }]}>Category</Text>
@@ -195,21 +181,15 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
         onChangeText={setTags}
         placeholder="e.g. work, travel"
       />
-      <Field
-        label="Notes"
-        value={notes}
-        onChangeText={setNotes}
-        multiline
-        numberOfLines={3}
-      />
+      <Field label="Notes" value={notes} onChangeText={setNotes} multiline numberOfLines={3} />
 
       <View style={styles.switchRow}>
         <Text>Recurring expense</Text>
         <Switch value={isRecurring} onValueChange={setIsRecurring} />
       </View>
       <Text style={{ color: muted, fontSize: 12, marginTop: -8 }}>
-        Tags this expense for your own tracking. Future occurrences
-        aren&apos;t added automatically yet.
+        Tags this expense for your own tracking. Future occurrences aren&apos;t added automatically
+        yet.
       </Text>
 
       {isRecurring && (
@@ -241,20 +221,12 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
       </View>
 
       <Button
-        title={
-          saving
-            ? uploadingReceipt
-              ? "Uploading receipt..."
-              : "Saving..."
-            : submitLabel
-        }
+        title={saving ? (uploadingReceipt ? "Uploading receipt..." : "Saving...") : submitLabel}
         onPress={handleSubmit}
         loading={saving}
       />
 
-      {onDelete && (
-        <Button title="Delete expense" variant="outline" onPress={handleDelete} />
-      )}
+      {onDelete && <Button title="Delete expense" variant="outline" onPress={handleDelete} />}
     </ScrollView>
   );
 }

@@ -11,7 +11,8 @@ export const createCategorySchema = z.object({
     .regex(/^#[0-9a-fA-F]{6}$/, "Invalid hex color")
     .nullable()
     .optional(),
-  is_default: z.boolean().default(false),
+  // `is_default` is intentionally not client-writable; the DB default handles
+  // it so users can't flag arbitrary categories as system defaults.
 });
 
 export const updateCategorySchema = createCategorySchema.partial();

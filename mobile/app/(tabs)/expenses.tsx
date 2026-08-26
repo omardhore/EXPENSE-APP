@@ -1,11 +1,6 @@
 import { useCallback, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
-import {
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-} from "react-native";
+import { Alert, FlatList, Pressable, StyleSheet } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { format, parseISO } from "date-fns";
@@ -18,17 +13,10 @@ export default function ExpensesScreen() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const { categories } = useCategories();
   const { currency } = useProfile();
-  const {
-    expenses,
-    loading,
-    refreshing,
-    hasMore,
-    refresh,
-    loadMore,
-    deleteExpense,
-  } = useExpenses({
-    category: categoryFilter === "all" ? undefined : categoryFilter,
-  });
+  const { expenses, loading, refreshing, error, hasMore, refresh, loadMore, deleteExpense } =
+    useExpenses({
+      category: categoryFilter === "all" ? undefined : categoryFilter,
+    });
   const card = useThemeColor({}, "card");
   const border = useThemeColor({}, "border");
   const muted = useThemeColor({}, "muted");
@@ -43,18 +31,14 @@ export default function ExpensesScreen() {
   );
 
   function confirmDelete(expense: ExpenseWithCategory) {
-    Alert.alert(
-      "Delete expense",
-      `Delete "${expense.description}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => deleteExpense(expense.id).catch((e) => Alert.alert("Error", e.message)),
-        },
-      ],
-    );
+    Alert.alert("Delete expense", `Delete "${expense.description}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => deleteExpense(expense.id).catch((e) => Alert.alert("Error", e.message)),
+      },
+    ]);
   }
 
   return (
@@ -82,8 +66,16 @@ export default function ExpensesScreen() {
         onEndReachedThreshold={0.4}
         ListEmptyComponent={
           !loading ? (
-            <Text style={{ color: muted, textAlign: "center", marginTop: 40 }}>
-              No expenses yet. Tap + to add one.
+            <Text
+              style={{
+                color: error ? danger : muted,
+                textAlign: "center",
+                marginTop: 40,
+              }}
+            >
+              {error
+                ? "Couldn't load expenses. Pull to refresh."
+                : "No expenses yet. Tap + to add one."}
             </Text>
           ) : null
         }

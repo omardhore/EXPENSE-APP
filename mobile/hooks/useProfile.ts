@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { updateProfileSchema, firstZodMessage } from "@/lib/schemas";
 
 export function useProfile() {
   const [email, setEmail] = useState("");
@@ -15,11 +16,7 @@ export function useProfile() {
     if (user) {
       setEmail(user.email ?? "");
       setName(user.user_metadata?.name ?? "");
-      const { data } = await supabase
-        .from("users")
-        .select("currency")
-        .eq("id", user.id)
-        .single();
+      const { data } = await supabase.from("users").select("currency").eq("id", user.id).single();
       if (data) setCurrency(data.currency);
     }
     setLoading(false);
@@ -30,24 +27,35 @@ export function useProfile() {
   }, [load]);
 
   async function save(newName: string, newCurrency: string) {
+    const parsed = updateProfileSchema.safeParse({
+      name: newName,
+      currency: newCurrency,
+    });
+    if (!parsed.success) {
+      throw new Error(firstZodMessage(parsed.error));
+    }
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
 
     const { error: authError } = await supabase.auth.updateUser({
-      data: { name: newName },
+      data: { name: parsed.data.name },
     });
     if (authError) throw new Error(authError.message);
 
     const { error: dbError } = await supabase
       .from("users")
-      .update({ currency: newCurrency, updated_at: new Date().toISOString() })
+      .update({
+        currency: parsed.data.currency,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", user.id);
     if (dbError) throw new Error(dbError.message);
 
-    setName(newName);
-    setCurrency(newCurrency);
+    setName(parsed.data.name);
+    setCurrency(parsed.data.currency);
   }
 
   return { email, name, currency, loading, save };

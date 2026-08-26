@@ -35,8 +35,9 @@ export async function GET() {
     ),
   );
 
-  const hasError = results.some((r) => r.error);
-  if (hasError) {
+  const firstError = results.find((r) => r.error)?.error;
+  if (firstError) {
+    console.error("[analytics/trends:GET] database error:", firstError);
     return errorResponse("DATABASE_ERROR", "Failed to fetch trends", 500);
   }
 

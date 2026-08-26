@@ -19,7 +19,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await getAuthenticatedUser();
+  const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
   const { id } = await params;
@@ -72,7 +72,8 @@ export async function POST(
     .upload(path, file, { upsert: true, contentType: file.type });
 
   if (uploadError) {
-    return errorResponse("STORAGE_ERROR", uploadError.message, 500);
+    console.error("[receipt:POST] upload error:", uploadError);
+    return errorResponse("STORAGE_ERROR", "A storage error occurred", 500);
   }
 
   // Store the storage path, not a public URL.
@@ -87,17 +88,18 @@ export async function POST(
     .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
 
   if (signError) {
-    return errorResponse("STORAGE_ERROR", signError.message, 500);
+    console.error("[receipt:POST] sign url error:", signError);
+    return errorResponse("STORAGE_ERROR", "A storage error occurred", 500);
   }
 
   return successResponse({ receipt_url: signed.signedUrl });
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await getAuthenticatedUser();
+  const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
   const { id } = await params;
@@ -124,7 +126,8 @@ export async function GET(
     .createSignedUrl(expense.receipt_url, SIGNED_URL_TTL_SECONDS);
 
   if (signError) {
-    return errorResponse("STORAGE_ERROR", signError.message, 500);
+    console.error("[receipt:GET] sign url error:", signError);
+    return errorResponse("STORAGE_ERROR", "A storage error occurred", 500);
   }
 
   return successResponse({ receipt_url: signed.signedUrl });

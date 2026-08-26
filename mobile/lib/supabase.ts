@@ -16,6 +16,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // policies as the web app) instead of the Next.js /api/v1 routes, which
 // are cookie-session-based and not designed for non-browser clients.
 // Row Level Security is the shared enforcement boundary for both platforms.
+// TODO(security): migrate token storage to expo-secure-store (chunked).
+// AsyncStorage persists the access/refresh tokens in plaintext. SecureStore
+// (Keychain/Keystore) is encrypted but rejects values above ~2KB on iOS, and
+// Supabase sessions can exceed that, so a chunking storage adapter (split the
+// JSON across multiple SecureStore keys) is required. Deferred because it
+// needs on-device verification that persistence/refresh still work end-to-end.
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,

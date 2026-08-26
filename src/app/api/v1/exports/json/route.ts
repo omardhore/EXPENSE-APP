@@ -4,7 +4,7 @@ import { getAuthenticatedUser } from "@/lib/api/auth";
 import { errorResponse } from "@/lib/api/response";
 
 export async function GET(request: NextRequest) {
-  const { user, error } = await getAuthenticatedUser();
+  const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
   const startDate = request.nextUrl.searchParams.get("startDate");
@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
   const { data, error: dbError } = await query;
 
   if (dbError) {
-    return errorResponse("DATABASE_ERROR", dbError.message, 500);
+    console.error("[exports/json:GET] database error:", dbError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   // Build JSON

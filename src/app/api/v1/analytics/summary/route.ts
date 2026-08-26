@@ -14,7 +14,7 @@ import {
 } from "date-fns";
 
 export async function GET(request: NextRequest) {
-  const { user, error } = await getAuthenticatedUser();
+  const { user, error } = await getAuthenticatedUser(request);
   if (error) return error;
 
   const period = request.nextUrl.searchParams.get("period") ?? "month";
@@ -72,6 +72,10 @@ export async function GET(request: NextRequest) {
   ]);
 
   if (currentResult.error || previousResult.error || categoryResult.error) {
+    console.error(
+      "[analytics/summary:GET] database error:",
+      currentResult.error ?? previousResult.error ?? categoryResult.error,
+    );
     return errorResponse(
       "DATABASE_ERROR",
       "Failed to fetch analytics",

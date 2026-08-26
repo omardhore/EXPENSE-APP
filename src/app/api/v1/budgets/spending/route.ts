@@ -51,7 +51,8 @@ export async function GET() {
     .eq("user_id", user.id);
 
   if (budgetError) {
-    return errorResponse("DATABASE_ERROR", budgetError.message, 500);
+    console.error("[budgets/spending:GET] database error:", budgetError);
+    return errorResponse("DATABASE_ERROR", "A database error occurred", 500);
   }
 
   // Calculate spending for each budget

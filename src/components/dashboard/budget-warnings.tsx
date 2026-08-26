@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useBudgetStore } from "@/lib/stores/budget-store";
-import { useCategoryStore } from "@/lib/stores/category-store";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -45,7 +44,10 @@ export function BudgetWarnings() {
   const warningBudgets = budgets
     .map((budget) => {
       const amountSpent = spending[budget.id] || 0;
-      const percentage = (amountSpent / budget.limit_amount) * 100;
+      const percentage =
+        budget.limit_amount > 0
+          ? (amountSpent / budget.limit_amount) * 100
+          : 0;
       return { ...budget, amountSpent, percentage };
     })
     .filter((b) => b.percentage >= b.alert_threshold)

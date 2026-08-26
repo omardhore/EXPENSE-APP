@@ -26,7 +26,8 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     try {
       const res = await fetch("/api/v1/budgets");
       const json = await res.json();
-      if (!json.success) throw new Error(json.error.message);
+      if (!res.ok || !json.success)
+        throw new Error(json?.error?.message ?? "Request failed");
       set({ budgets: json.data, loading: false });
     } catch (err) {
       set({
@@ -45,7 +46,8 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error.message);
+      if (!res.ok || !json.success)
+        throw new Error(json?.error?.message ?? "Request failed");
       set({ budgets: [...get().budgets, json.data] });
     } catch (err) {
       set({
@@ -64,7 +66,8 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error.message);
+      if (!res.ok || !json.success)
+        throw new Error(json?.error?.message ?? "Request failed");
       set({
         budgets: get().budgets.map((b) => (b.id === id ? json.data : b)),
       });
@@ -84,13 +87,15 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
         method: "DELETE",
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error.message);
+      if (!res.ok || !json.success)
+        throw new Error(json?.error?.message ?? "Request failed");
       set({ budgets: get().budgets.filter((b) => b.id !== id) });
     } catch (err) {
       set({
         error:
           err instanceof Error ? err.message : "Failed to delete budget",
       });
+      throw err;
     }
   },
 }));

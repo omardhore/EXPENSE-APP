@@ -55,11 +55,13 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [trends, setTrends] = useState<Trend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [period, setPeriod] = useState("month");
 
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
+      setError(false);
       try {
         const [summaryRes, trendsRes] = await Promise.all([
           fetch(`/api/v1/analytics/summary?period=${period}`),
@@ -68,8 +70,13 @@ export default function DashboardPage() {
         const summaryJson = await summaryRes.json();
         const trendsJson = await trendsRes.json();
 
-        if (summaryJson.success) setSummary(summaryJson.data);
-        if (trendsJson.success) setTrends(trendsJson.data);
+        if (!summaryRes.ok || !summaryJson.success) {
+          throw new Error(summaryJson?.error?.message ?? "Request failed");
+        }
+        setSummary(summaryJson.data);
+        if (trendsRes.ok && trendsJson.success) setTrends(trendsJson.data);
+      } catch {
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -108,6 +115,12 @@ export default function DashboardPage() {
       </div>
 
       <BudgetWarnings />
+
+      {error && (
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          Failed to load dashboard data. Please try again.
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -153,7 +166,7 @@ export default function DashboardPage() {
         <Card className="border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Daily Average
+              Avg / Transaction
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-primary" />
           </CardHeader>

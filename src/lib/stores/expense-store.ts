@@ -24,7 +24,7 @@ interface ExpenseState {
   };
   setFilters: (filters: ExpenseState["filters"]) => void;
   fetchExpenses: (page?: number) => Promise<void>;
-  addExpense: (data: Record<string, unknown>) => Promise<void>;
+  addExpense: (data: Record<string, unknown>) => Promise<ExpenseWithCategory>;
   updateExpense: (id: string, data: UpdateExpenseInput) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
 }
@@ -62,12 +62,14 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
       const res = await fetch(`/api/v1/expenses?${params}`);
       const json = await res.json();
-      if (!json.success) throw new Error(json.error.message);
+      if (!res.ok || !json.success)
+        throw new Error(json?.error?.message ?? "Request failed");
 
+      const pagination = json.meta?.pagination ?? {};
       set({
         expenses: page === 1 ? json.data : [...get().expenses, ...json.data],
-        total: json.meta.pagination.total,
-        hasMore: json.meta.pagination.hasMore,
+        total: pagination.total ?? 0,
+        hasMore: pagination.hasMore ?? false,
         page,
         loading: false,
       });
@@ -88,11 +90,13 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error.message);
+      if (!res.ok || !json.success)
+        throw new Error(json?.error?.message ?? "Request failed");
       set({
         expenses: [json.data, ...get().expenses],
         total: get().total + 1,
       });
+      return json.data as ExpenseWithCategory;
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : "Failed to add expense",
@@ -110,7 +114,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error.message);
+      if (!res.ok || !json.success)
+        throw new Error(json?.error?.message ?? "Request failed");
       set({
         expenses: get().expenses.map((e) =>
           e.id === id ? json.data : e,
@@ -132,7 +137,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         method: "DELETE",
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error.message);
+      if (!res.ok || !json.success)
+        throw new Error(json?.error?.message ?? "Request failed");
       set({
         expenses: get().expenses.filter((e) => e.id !== id),
         total: get().total - 1,
@@ -142,6 +148,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         error:
           err instanceof Error ? err.message : "Failed to delete expense",
       });
+      throw err;
     }
   },
 }));
