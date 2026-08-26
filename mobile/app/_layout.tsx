@@ -57,11 +57,28 @@ function RootLayoutNav() {
         <Stack.Protected guard={!!session}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="expense/[id]" options={{ presentation: "modal", title: "Expense" }} />
-          <Stack.Screen name="expense/new" options={{ presentation: "modal", title: "Add Expense" }} />
+          <Stack.Screen
+            name="expense/new"
+            options={{ presentation: "modal", title: "Add Expense" }}
+          />
+          <Stack.Screen name="income/[id]" options={{ presentation: "modal", title: "Income" }} />
+          <Stack.Screen
+            name="income/new"
+            options={{ presentation: "modal", title: "Add Income" }}
+          />
           <Stack.Screen name="budget/[id]" options={{ presentation: "modal", title: "Budget" }} />
-          <Stack.Screen name="budget/new" options={{ presentation: "modal", title: "Add Budget" }} />
-          <Stack.Screen name="category/[id]" options={{ presentation: "modal", title: "Category" }} />
-          <Stack.Screen name="category/new" options={{ presentation: "modal", title: "Add Category" }} />
+          <Stack.Screen
+            name="budget/new"
+            options={{ presentation: "modal", title: "Add Budget" }}
+          />
+          <Stack.Screen
+            name="category/[id]"
+            options={{ presentation: "modal", title: "Category" }}
+          />
+          <Stack.Screen
+            name="category/new"
+            options={{ presentation: "modal", title: "Add Category" }}
+          />
         </Stack.Protected>
         <Stack.Protected guard={!session}>
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />

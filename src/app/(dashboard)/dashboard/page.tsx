@@ -14,7 +14,8 @@ import {
   ArrowUpRight,
   DollarSign,
   Receipt,
-  TrendingUp,
+  Wallet,
+  Scale,
 } from "lucide-react";
 import {
   BarChart,
@@ -23,6 +24,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -43,12 +45,21 @@ interface Summary {
     total: number;
     count: number;
   }[];
+  incomeTotal: number;
+  previousIncomeTotal: number;
+  incomeChangePercent: number;
+  incomeCount: number;
+  netTotal: number;
+  previousNetTotal: number;
+  bySource: { name: string; total: number; count: number }[];
 }
 
 interface Trend {
   month: string;
   total: number;
   count: number;
+  income: number;
+  net: number;
 }
 
 export default function DashboardPage() {
@@ -88,8 +99,8 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <div className="grid gap-4 md:grid-cols-3">
-          {[1, 2, 3].map((i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
               <CardContent className="p-6">
                 <div className="h-20 animate-pulse rounded bg-muted" />
@@ -123,7 +134,30 @@ export default function DashboardPage() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-primary/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Income
+            </CardTitle>
+            <Wallet className="h-4 w-4 text-emerald-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600">
+              ${summary?.incomeTotal.toFixed(2) ?? "0.00"}
+            </div>
+            {summary && summary.incomeChangePercent !== 0 && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                {summary.incomeChangePercent > 0 ? (
+                  <ArrowUpRight className="h-3 w-3 text-secondary" />
+                ) : (
+                  <ArrowDownRight className="h-3 w-3 text-destructive" />
+                )}
+                {Math.abs(summary.incomeChangePercent)}% from last period
+              </p>
+            )}
+          </CardContent>
+        </Card>
         <Card className="border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -150,6 +184,29 @@ export default function DashboardPage() {
         <Card className="border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
+              Net Cash Flow
+            </CardTitle>
+            <Scale className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div
+              className={`text-2xl font-bold ${
+                (summary?.netTotal ?? 0) >= 0
+                  ? "text-emerald-600"
+                  : "text-destructive"
+              }`}
+            >
+              {(summary?.netTotal ?? 0) < 0 ? "-" : ""}$
+              {Math.abs(summary?.netTotal ?? 0).toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Income minus spending
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-primary/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
               Transactions
             </CardTitle>
             <Receipt className="h-4 w-4 text-primary" />
@@ -159,26 +216,7 @@ export default function DashboardPage() {
               {summary?.expenseCount ?? 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              This {period}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Avg / Transaction
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              $
-              {summary && summary.expenseCount > 0
-                ? (summary.currentTotal / Math.max(summary.expenseCount, 1)).toFixed(2)
-                : "0.00"}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Per transaction
+              {summary?.incomeCount ?? 0} income · this {period}
             </p>
           </CardContent>
         </Card>
@@ -188,7 +226,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-primary/20">
           <CardHeader>
-            <CardTitle>Spending Trends</CardTitle>
+            <CardTitle>Income vs Spending</CardTitle>
             <CardDescription>Last 6 months</CardDescription>
           </CardHeader>
           <CardContent>
@@ -199,8 +237,16 @@ export default function DashboardPage() {
                   <XAxis dataKey="month" className="text-xs" />
                   <YAxis className="text-xs" />
                   <Tooltip />
+                  <Legend />
+                  <Bar
+                    dataKey="income"
+                    name="Income"
+                    fill="#059669"
+                    radius={[4, 4, 0, 0]}
+                  />
                   <Bar
                     dataKey="total"
+                    name="Spending"
                     fill="var(--color-primary)"
                     radius={[4, 4, 0, 0]}
                   />

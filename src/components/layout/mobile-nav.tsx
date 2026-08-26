@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Receipt, LayoutDashboard, Tags, Target, Download, Settings } from "lucide-react";
+import { Menu, Receipt, TrendingUp, LayoutDashboard, Tags, Target, Download, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils/cn";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils/cn";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/expenses", label: "Expenses", icon: Receipt },
+  { href: "/income", label: "Income", icon: TrendingUp },
   { href: "/categories", label: "Categories", icon: Tags },
   { href: "/budgets", label: "Budgets", icon: Target },
   { href: "/exports", label: "Exports", icon: Download },

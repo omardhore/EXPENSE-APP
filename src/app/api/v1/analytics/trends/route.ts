@@ -23,29 +23,53 @@ export async function GET() {
     });
   }
 
-  const results = await Promise.all(
-    months.map(({ start, end }) =>
-      supabase
-        .from("expenses")
-        .select("amount")
-        .eq("user_id", user.id)
-        .is("deleted_at", null)
-        .gte("date", start)
-        .lte("date", end),
+  const [expenseResults, incomeResults] = await Promise.all([
+    Promise.all(
+      months.map(({ start, end }) =>
+        supabase
+          .from("expenses")
+          .select("amount")
+          .eq("user_id", user.id)
+          .is("deleted_at", null)
+          .gte("date", start)
+          .lte("date", end),
+      ),
     ),
-  );
+    Promise.all(
+      months.map(({ start, end }) =>
+        supabase
+          .from("income")
+          .select("amount")
+          .eq("user_id", user.id)
+          .is("deleted_at", null)
+          .gte("date", start)
+          .lte("date", end),
+      ),
+    ),
+  ]);
 
-  const firstError = results.find((r) => r.error)?.error;
+  const firstError =
+    expenseResults.find((r) => r.error)?.error ??
+    incomeResults.find((r) => r.error)?.error;
   if (firstError) {
     console.error("[analytics/trends:GET] database error:", firstError);
     return errorResponse("DATABASE_ERROR", "Failed to fetch trends", 500);
   }
 
-  const trends = months.map((month, i) => ({
-    month: month.label,
-    total: results[i].data!.reduce((sum, e) => sum + Number(e.amount), 0),
-    count: results[i].data!.length,
-  }));
+  const sum = (rows: { amount: number }[]) =>
+    rows.reduce((acc, r) => acc + Number(r.amount), 0);
+
+  const trends = months.map((month, i) => {
+    const total = sum(expenseResults[i].data!);
+    const income = sum(incomeResults[i].data!);
+    return {
+      month: month.label,
+      total,
+      count: expenseResults[i].data!.length,
+      income,
+      net: income - total,
+    };
+  });
 
   return successResponse(trends);
 }

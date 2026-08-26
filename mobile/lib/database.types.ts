@@ -2,15 +2,10 @@
 // Supabase project/schema, so this stays in sync manually with that file
 // until the two apps share a types package.
 
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type PaymentMethod = "cash" | "credit" | "debit" | "other";
+export type IncomeSource = "salary" | "freelance" | "investment" | "gift" | "refund" | "other";
 export type RecurringFrequency = "weekly" | "monthly" | "yearly";
 export type BudgetPeriod = "monthly" | "quarterly" | "yearly";
 export type Theme = "light" | "dark";
@@ -156,6 +151,61 @@ export interface Database {
           },
         ];
       };
+      income: {
+        Row: {
+          id: string;
+          user_id: string;
+          amount: number;
+          description: string;
+          date: string;
+          source: IncomeSource;
+          notes: string | null;
+          is_recurring: boolean;
+          recurring_frequency: RecurringFrequency | null;
+          recurring_group_id: string | null;
+          next_due_date: string | null;
+          deleted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          amount: number;
+          description: string;
+          date: string;
+          source?: IncomeSource;
+          notes?: string | null;
+          is_recurring?: boolean;
+          recurring_frequency?: RecurringFrequency | null;
+          recurring_group_id?: string | null;
+          next_due_date?: string | null;
+          deleted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          amount?: number;
+          description?: string;
+          date?: string;
+          source?: IncomeSource;
+          notes?: string | null;
+          is_recurring?: boolean;
+          recurring_frequency?: RecurringFrequency | null;
+          next_due_date?: string | null;
+          deleted_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "income_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       budgets: {
         Row: {
           id: string;
@@ -251,4 +301,5 @@ export interface Database {
 export type User = Database["public"]["Tables"]["users"]["Row"];
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
 export type Expense = Database["public"]["Tables"]["expenses"]["Row"];
+export type Income = Database["public"]["Tables"]["income"]["Row"];
 export type Budget = Database["public"]["Tables"]["budgets"]["Row"];

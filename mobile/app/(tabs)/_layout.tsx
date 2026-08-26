@@ -25,8 +25,15 @@ export default function TabLayout() {
         name="expenses"
         options={{
           title: "Expenses",
+          tabBarIcon: ({ color, size }) => <Ionicons name="receipt" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="income"
+        options={{
+          title: "Income",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="receipt" size={size} color={color} />
+            <Ionicons name="trending-up" size={size} color={color} />
           ),
         }}
       />
@@ -34,27 +41,21 @@ export default function TabLayout() {
         name="budgets"
         options={{
           title: "Budgets",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="wallet" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="wallet" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="categories"
         options={{
           title: "Categories",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="pricetags" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="pricetags" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="settings" size={size} color={color} />,
         }}
       />
     </Tabs>

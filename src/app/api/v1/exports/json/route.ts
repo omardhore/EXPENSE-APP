@@ -9,11 +9,12 @@ export async function GET(request: NextRequest) {
 
   const startDate = request.nextUrl.searchParams.get("startDate");
   const endDate = request.nextUrl.searchParams.get("endDate");
+  const type = request.nextUrl.searchParams.get("type") === "income" ? "income" : "expenses";
 
   const supabase = await createClient();
   let query = supabase
-    .from("expenses")
-    .select("*, categories(name)")
+    .from(type)
+    .select(type === "income" ? "*" : "*, categories(name)")
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("date", { ascending: false });
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     {
       headers: {
         "Content-Type": "application/json",
-        "Content-Disposition": `attachment; filename="expenses.json"`,
+        "Content-Disposition": `attachment; filename="${type}.json"`,
       },
     },
   );

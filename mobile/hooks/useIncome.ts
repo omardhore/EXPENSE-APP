@@ -1,34 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireUserId } from "@/lib/session";
-import type { Expense, PaymentMethod, RecurringFrequency } from "@/lib/database.types";
+import type { Income, IncomeSource, RecurringFrequency } from "@/lib/database.types";
 
-export interface ExpenseWithCategory extends Expense {
-  categories: { name: string; icon: string | null; color: string | null } | null;
-}
-
-export interface ExpenseFilters {
+export interface IncomeFilters {
   startDate?: string;
   endDate?: string;
-  category?: string;
+  source?: string;
 }
 
 const PAGE_SIZE = 20;
 
-export interface ExpenseInput {
+export interface IncomeInput {
   amount: number;
-  category_id: string | null;
   description: string;
   date: string;
-  payment_method: PaymentMethod;
-  tags: string[];
+  source: IncomeSource;
   notes: string | null;
   is_recurring: boolean;
   recurring_frequency: RecurringFrequency | null;
 }
 
-export function useExpenses(filters: ExpenseFilters = {}) {
-  const [expenses, setExpenses] = useState<ExpenseWithCategory[]>([]);
+export function useIncome(filters: IncomeFilters = {}) {
+  const [income, setIncome] = useState<Income[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,16 +34,14 @@ export function useExpenses(filters: ExpenseFilters = {}) {
   // set for "replace", so it can't gate appends) and lets us discard
   // responses whose filter set is no longer current.
   const appendingRef = useRef(false);
-  const filterSig = `${filters.startDate ?? ""}|${filters.endDate ?? ""}|${filters.category ?? ""}`;
+  const filterSig = `${filters.startDate ?? ""}|${filters.endDate ?? ""}|${filters.source ?? ""}`;
   const filterSigRef = useRef(filterSig);
   // Keep the ref in sync via an effect (never mutate a ref during render).
-  // Declared before the fetch effect below so the signature is already current
-  // when a filter change triggers a new fetch.
   useEffect(() => {
     filterSigRef.current = filterSig;
   }, [filterSig]);
 
-  const fetchExpenses = useCallback(
+  const fetchIncome = useCallback(
     async (targetPage: number, mode: "replace" | "append") => {
       if (mode === "append") {
         if (appendingRef.current) return;
@@ -64,15 +56,15 @@ export function useExpenses(filters: ExpenseFilters = {}) {
       const requestSig = filterSigRef.current;
       const offset = (targetPage - 1) * PAGE_SIZE;
       let query = supabase
-        .from("expenses")
-        .select("*, categories(name, icon, color)", { count: "exact" })
+        .from("income")
+        .select("*", { count: "exact" })
         .is("deleted_at", null)
         .order("date", { ascending: false })
         .range(offset, offset + PAGE_SIZE - 1);
 
       if (filters.startDate) query = query.gte("date", filters.startDate);
       if (filters.endDate) query = query.lte("date", filters.endDate);
-      if (filters.category) query = query.eq("category_id", filters.category);
+      if (filters.source) query = query.eq("source", filters.source as IncomeSource);
 
       const { data, error, count } = await query;
 
@@ -86,8 +78,8 @@ export function useExpenses(filters: ExpenseFilters = {}) {
       if (error) {
         setError(error.message);
       } else {
-        const rows = (data ?? []) as unknown as ExpenseWithCategory[];
-        setExpenses((prev) => (mode === "replace" ? rows : [...prev, ...rows]));
+        const rows = (data ?? []) as unknown as Income[];
+        setIncome((prev) => (mode === "replace" ? rows : [...prev, ...rows]));
         setTotal(count ?? 0);
         setHasMore(offset + PAGE_SIZE < (count ?? 0));
         setPage(targetPage);
@@ -95,65 +87,65 @@ export function useExpenses(filters: ExpenseFilters = {}) {
       setLoading(false);
       setRefreshing(false);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filters.startDate, filters.endDate, filters.category],
+
+    [filters.startDate, filters.endDate, filters.source],
   );
 
   useEffect(() => {
-    fetchExpenses(1, "replace");
-  }, [fetchExpenses]);
+    fetchIncome(1, "replace");
+  }, [fetchIncome]);
 
   function refresh() {
     setRefreshing(true);
-    fetchExpenses(1, "replace");
+    fetchIncome(1, "replace");
   }
 
   function loadMore() {
     if (!loading && !appendingRef.current && hasMore) {
-      fetchExpenses(page + 1, "append");
+      fetchIncome(page + 1, "append");
     }
   }
 
-  async function createExpense(input: ExpenseInput) {
+  async function createIncome(input: IncomeInput) {
     const userId = await requireUserId();
 
     const { data, error } = await supabase
-      .from("expenses")
+      .from("income")
       .insert({ ...input, user_id: userId })
-      .select("*, categories(name, icon, color)")
+      .select("*")
       .single();
     if (error) throw new Error(error.message);
-    const row = data as unknown as ExpenseWithCategory;
-    setExpenses((prev) => [row, ...prev]);
+    const row = data as unknown as Income;
+    setIncome((prev) => [row, ...prev]);
     setTotal((prev) => prev + 1);
     return row;
   }
 
-  async function updateExpense(id: string, input: Partial<ExpenseInput>) {
+  async function updateIncome(id: string, input: Partial<IncomeInput>) {
     const { data, error } = await supabase
-      .from("expenses")
+      .from("income")
       .update({ ...input, updated_at: new Date().toISOString() })
       .eq("id", id)
-      .select("*, categories(name, icon, color)")
+      .select("*")
       .single();
     if (error) throw new Error(error.message);
-    const row = data as unknown as ExpenseWithCategory;
-    setExpenses((prev) => prev.map((e) => (e.id === id ? row : e)));
+    const row = data as unknown as Income;
+    setIncome((prev) => prev.map((e) => (e.id === id ? row : e)));
     return row;
   }
 
-  async function deleteExpense(id: string) {
+  async function deleteIncome(id: string) {
     const { error } = await supabase
-      .from("expenses")
+      .from("income")
       .update({ deleted_at: new Date().toISOString() })
       .eq("id", id);
     if (error) throw new Error(error.message);
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    setIncome((prev) => prev.filter((e) => e.id !== id));
     setTotal((prev) => prev - 1);
   }
 
   return {
-    expenses,
+    income,
     loading,
     refreshing,
     error,
@@ -161,8 +153,8 @@ export function useExpenses(filters: ExpenseFilters = {}) {
     hasMore,
     refresh,
     loadMore,
-    createExpense,
-    updateExpense,
-    deleteExpense,
+    createIncome,
+    updateIncome,
+    deleteIncome,
   };
 }

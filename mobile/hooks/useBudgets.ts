@@ -8,6 +8,7 @@ import {
   endOfYear,
 } from "date-fns";
 import { supabase } from "@/lib/supabase";
+import { getCurrentUser, requireUserId } from "@/lib/session";
 import type { Budget, BudgetPeriod } from "@/lib/database.types";
 
 export interface BudgetWithCategory extends Budget {
@@ -47,9 +48,7 @@ export function useBudgets() {
     setLoading(true);
     setError(null);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) {
       setLoading(false);
       return;
@@ -98,14 +97,11 @@ export function useBudgets() {
   }, [fetchBudgets]);
 
   async function createBudget(input: BudgetInput) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error("Not authenticated");
+    const userId = await requireUserId();
 
     const { data, error } = await supabase
       .from("budgets")
-      .insert({ ...input, user_id: user.id })
+      .insert({ ...input, user_id: userId })
       .select("*, categories(name, icon, color)")
       .single();
     if (error) throw new Error(error.message);

@@ -47,7 +47,14 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
 
-  const [currentResult, previousResult, categoryResult] = await Promise.all([
+  const [
+    currentResult,
+    previousResult,
+    categoryResult,
+    incomeCurrentResult,
+    incomePreviousResult,
+    incomeSourceResult,
+  ] = await Promise.all([
     supabase
       .from("expenses")
       .select("amount")
@@ -69,34 +76,62 @@ export async function GET(request: NextRequest) {
       .is("deleted_at", null)
       .gte("date", format(start, "yyyy-MM-dd"))
       .lte("date", format(end, "yyyy-MM-dd")),
+    supabase
+      .from("income")
+      .select("amount")
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .gte("date", format(start, "yyyy-MM-dd"))
+      .lte("date", format(end, "yyyy-MM-dd")),
+    supabase
+      .from("income")
+      .select("amount")
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .gte("date", format(prevStart, "yyyy-MM-dd"))
+      .lte("date", format(prevEnd, "yyyy-MM-dd")),
+    supabase
+      .from("income")
+      .select("amount, source")
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .gte("date", format(start, "yyyy-MM-dd"))
+      .lte("date", format(end, "yyyy-MM-dd")),
   ]);
 
-  if (currentResult.error || previousResult.error || categoryResult.error) {
-    console.error(
-      "[analytics/summary:GET] database error:",
-      currentResult.error ?? previousResult.error ?? categoryResult.error,
-    );
-    return errorResponse(
-      "DATABASE_ERROR",
-      "Failed to fetch analytics",
-      500,
-    );
+  const anyError =
+    currentResult.error ||
+    previousResult.error ||
+    categoryResult.error ||
+    incomeCurrentResult.error ||
+    incomePreviousResult.error ||
+    incomeSourceResult.error;
+  if (anyError) {
+    console.error("[analytics/summary:GET] database error:", anyError);
+    return errorResponse("DATABASE_ERROR", "Failed to fetch analytics", 500);
   }
 
-  const currentTotal = currentResult.data.reduce(
-    (sum, e) => sum + Number(e.amount),
-    0,
-  );
-  const previousTotal = previousResult.data.reduce(
-    (sum, e) => sum + Number(e.amount),
-    0,
-  );
+  const sum = (rows: { amount: number }[]) =>
+    rows.reduce((acc, r) => acc + Number(r.amount), 0);
+
+  const currentTotal = sum(currentResult.data);
+  const previousTotal = sum(previousResult.data);
   const changePercent =
     previousTotal > 0
       ? ((currentTotal - previousTotal) / previousTotal) * 100
       : 0;
 
-  // Group by category
+  const incomeTotal = sum(incomeCurrentResult.data);
+  const previousIncomeTotal = sum(incomePreviousResult.data);
+  const incomeChangePercent =
+    previousIncomeTotal > 0
+      ? ((incomeTotal - previousIncomeTotal) / previousIncomeTotal) * 100
+      : 0;
+
+  const netTotal = incomeTotal - currentTotal;
+  const previousNetTotal = previousIncomeTotal - previousTotal;
+
+  // Group expenses by category
   const categoryMap = new Map<
     string,
     { name: string; color: string | null; total: number; count: number }
@@ -118,6 +153,19 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Group income by source
+  const sourceMap = new Map<string, { name: string; total: number; count: number }>();
+  for (const entry of incomeSourceResult.data) {
+    const key = (entry.source as string) ?? "other";
+    const existing = sourceMap.get(key);
+    if (existing) {
+      existing.total += Number(entry.amount);
+      existing.count += 1;
+    } else {
+      sourceMap.set(key, { name: key, total: Number(entry.amount), count: 1 });
+    }
+  }
+
   return successResponse({
     period,
     currentTotal,
@@ -127,5 +175,12 @@ export async function GET(request: NextRequest) {
     byCategory: Array.from(categoryMap.values()).sort(
       (a, b) => b.total - a.total,
     ),
+    incomeTotal,
+    previousIncomeTotal,
+    incomeChangePercent: Math.round(incomeChangePercent * 100) / 100,
+    incomeCount: incomeCurrentResult.data.length,
+    netTotal,
+    previousNetTotal,
+    bySource: Array.from(sourceMap.values()).sort((a, b) => b.total - a.total),
   });
 }
