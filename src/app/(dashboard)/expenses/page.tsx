@@ -64,7 +64,7 @@ export default function ExpensesPage() {
     amount: "",
     date: format(new Date(), "yyyy-MM-dd"),
     category_id: "",
-    payment_method: "other" as "cash" | "credit" | "debit" | "other",
+    payment_method: "evc" as "evc" | "bank" | "card" | "other",
     notes: "",
     is_recurring: false,
     recurring_frequency: "" as "" | "weekly" | "monthly" | "yearly",
@@ -91,7 +91,7 @@ export default function ExpensesPage() {
       amount: "",
       date: format(new Date(), "yyyy-MM-dd"),
       category_id: "",
-      payment_method: "other",
+      payment_method: "evc",
       notes: "",
       is_recurring: false,
       recurring_frequency: "",
@@ -106,7 +106,7 @@ export default function ExpensesPage() {
       amount: parseFloat(form.amount),
       date: form.date,
       category_id: form.category_id || null,
-      payment_method: form.payment_method as "cash" | "credit" | "debit" | "other",
+      payment_method: form.payment_method as "evc" | "bank" | "card" | "other",
       notes: form.notes || null,
       is_recurring: form.is_recurring,
       recurring_frequency: form.is_recurring && form.recurring_frequency
@@ -182,9 +182,9 @@ export default function ExpensesPage() {
   }
 
   const paymentMethodLabels: Record<string, string> = {
-    cash: "Cash",
-    credit: "Credit",
-    debit: "Debit",
+    evc: "EVC",
+    bank: "Bank",
+    card: "Card",
     other: "Other",
   };
 
@@ -290,9 +290,9 @@ export default function ExpensesPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="credit">Credit</SelectItem>
-                      <SelectItem value="debit">Debit</SelectItem>
+                      <SelectItem value="evc">EVC</SelectItem>
+                      <SelectItem value="bank">Bank</SelectItem>
+                      <SelectItem value="card">Card</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>

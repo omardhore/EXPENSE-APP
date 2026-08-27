@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const paymentMethods = ["cash", "credit", "debit", "other"] as const;
+export const paymentMethods = ["evc", "bank", "card", "other"] as const;
 export const recurringFrequencies = ["weekly", "monthly", "yearly"] as const;
 
 export const createExpenseSchema = z.object({
@@ -11,7 +11,7 @@ export const createExpenseSchema = z.object({
     .min(1, "Description is required")
     .max(255, "Description must be 255 characters or less"),
   date: z.string().date("Invalid date format"),
-  payment_method: z.enum(paymentMethods).default("other"),
+  payment_method: z.enum(paymentMethods).default("evc"),
   tags: z.array(z.string()).default([]),
   notes: z.string().max(1000).nullable().optional(),
   is_recurring: z.boolean().default(false),

@@ -5,6 +5,7 @@ import { Text, View, useThemeColor } from "@/components/Themed";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useBudgets } from "@/hooks/useBudgets";
 import { useProfile } from "@/hooks/useProfile";
+import { CategoryDonut } from "@/components/CategoryDonut";
 
 export default function DashboardScreen() {
   const { monthTotal, incomeTotal, netTotal, categoryTotals, loading, error, refetch } =
@@ -15,7 +16,6 @@ export default function DashboardScreen() {
   const card = useThemeColor({}, "card");
   const border = useThemeColor({}, "border");
   const muted = useThemeColor({}, "muted");
-  const tint = useThemeColor({}, "tint");
   const danger = useThemeColor({}, "danger");
   const dangerBg = useThemeColor({}, "dangerBg");
 
@@ -39,8 +39,6 @@ export default function DashboardScreen() {
     // web schema, so compare against the spent/limit ratio scaled to 0-1.
     return spent / Number(b.limit_amount) >= Number(b.alert_threshold) / 100;
   });
-
-  const maxCategoryTotal = Math.max(1, ...categoryTotals.map((c) => c.total));
 
   return (
     <ScrollView
@@ -101,30 +99,11 @@ export default function DashboardScreen() {
 
       <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
         <Text style={styles.sectionTitle}>By category</Text>
-        {!loading && categoryTotals.length === 0 && (
+        {!loading && categoryTotals.length === 0 ? (
           <Text style={{ color: muted }}>No expenses this month yet.</Text>
+        ) : (
+          <CategoryDonut data={categoryTotals} currency={currency} />
         )}
-        {categoryTotals.map((c) => (
-          <View key={c.categoryId ?? "uncategorized"} style={styles.categoryRow}>
-            <View style={styles.categoryHeader}>
-              <Text>{c.name}</Text>
-              <Text style={{ color: muted }}>
-                {currency} {c.total.toFixed(2)}
-              </Text>
-            </View>
-            <View style={[styles.barTrack, { backgroundColor: border }]}>
-              <View
-                style={[
-                  styles.barFill,
-                  {
-                    width: `${(c.total / maxCategoryTotal) * 100}%`,
-                    backgroundColor: c.color ?? tint,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-        ))}
       </View>
     </ScrollView>
   );
