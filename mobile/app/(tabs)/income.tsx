@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { Alert, FlatList, Pressable, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { format, parseISO } from "date-fns";
@@ -23,6 +24,7 @@ export default function IncomeScreen() {
   const muted = useThemeColor({}, "muted");
   const tint = useThemeColor({}, "tint");
   const danger = useThemeColor({}, "danger");
+  const insets = useSafeAreaInsets();
 
   useFocusEffect(
     useCallback(() => {
@@ -56,7 +58,7 @@ export default function IncomeScreen() {
       <FlatList
         data={income}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 96 }]}
         refreshing={refreshing}
         onRefresh={refresh}
         onEndReached={hasMore ? loadMore : undefined}
@@ -97,7 +99,7 @@ export default function IncomeScreen() {
 
       <Pressable
         onPress={() => router.push("/income/new")}
-        style={[styles.fab, { backgroundColor: tint }]}
+        style={[styles.fab, { backgroundColor: tint, bottom: insets.bottom + 24 }]}
       >
         <Ionicons name="add" size={28} color="#fff" />
       </Pressable>

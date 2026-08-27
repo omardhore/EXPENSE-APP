@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type PaymentMethod = "cash" | "credit" | "debit" | "other";
+export type PaymentMethod = "evc" | "bank" | "card" | "other";
 export type IncomeSource =
   | "salary"
   | "freelance"

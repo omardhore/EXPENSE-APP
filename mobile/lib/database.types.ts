@@ -4,7 +4,7 @@
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
-export type PaymentMethod = "cash" | "credit" | "debit" | "other";
+export type PaymentMethod = "evc" | "bank" | "card" | "other";
 export type IncomeSource = "salary" | "freelance" | "investment" | "gift" | "refund" | "other";
 export type RecurringFrequency = "weekly" | "monthly" | "yearly";
 export type BudgetPeriod = "monthly" | "quarterly" | "yearly";
