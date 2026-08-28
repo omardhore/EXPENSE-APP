@@ -26,6 +26,7 @@ interface Props {
 
 export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props) {
   const { categories } = useCategories();
+  const [description, setDescription] = useState(initial?.description ?? "");
   const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
   const [date, setDate] = useState(initial?.date ?? format(new Date(), "yyyy-MM-dd"));
   const [categoryId, setCategoryId] = useState<string>(initial?.category_id ?? "");
@@ -38,14 +39,13 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
   const muted = useThemeColor({}, "muted");
 
   async function handleSubmit() {
-    // Description isn't shown in this minimal form — derive it from the
-    // chosen category (falling back to the existing value or "Expense") so
-    // the required column is always populated.
+    // Description is optional in the form; when left blank, fall back to the
+    // chosen category name (or "Expense") so the required column is filled.
     const categoryName = categories.find((c) => c.id === categoryId)?.name;
-    const description = categoryName ?? initial?.description ?? "Expense";
+    const finalDescription = description.trim() || categoryName || "Expense";
 
     const parsed = createExpenseSchema.safeParse({
-      description,
+      description: finalDescription,
       amount: Number(amount),
       date,
       category_id: categoryId || null,
@@ -96,6 +96,12 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Field
+        label="Description (optional)"
+        value={description}
+        onChangeText={setDescription}
+        placeholder="e.g. Groceries"
+      />
       <Field
         label="Amount"
         value={amount}
