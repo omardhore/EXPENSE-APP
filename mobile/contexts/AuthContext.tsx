@@ -11,7 +11,7 @@ interface AuthContextValue {
     email: string,
     password: string,
     name: string,
-  ) => Promise<{ error: string | null }>;
+  ) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
 }
 
@@ -55,12 +55,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signUp(email: string, password: string, name: string) {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { name } },
     });
-    return { error: error?.message ?? null };
+    // When email confirmation is disabled, signUp returns a session and the
+    // auth-state listener signs the user straight in. When it's enabled, there
+    // is no session yet and the user must confirm via email first.
+    return {
+      error: error?.message ?? null,
+      needsConfirmation: !error && !data.session,
+    };
   }
 
   async function signOut() {

@@ -21,13 +21,22 @@ export default function SignupScreen() {
   async function handleSubmit() {
     setError(null);
     setLoading(true);
-    const { error } = await signUp(email, password, name);
-    setLoading(false);
+    const { error, needsConfirmation } = await signUp(email, password, name);
     if (error) {
+      setLoading(false);
       setError(error);
       return;
     }
-    setSuccess(true);
+    if (needsConfirmation) {
+      // Email confirmation is on — show the "check your email" screen.
+      setLoading(false);
+      setSuccess(true);
+      return;
+    }
+    // A session was created (confirmation off). Keep the loading state so the
+    // button stays "Creating account..." while the auth listener navigates
+    // into the app — otherwise the idle signup form flashes back briefly and
+    // looks like the signup bounced.
   }
 
   if (success) {
@@ -35,8 +44,8 @@ export default function SignupScreen() {
       <View style={styles.container}>
         <Text style={styles.title}>Check your email</Text>
         <Text style={styles.subtitle}>
-          We&apos;ve sent a confirmation link to {email}. Click the link to
-          activate your account, then come back and sign in.
+          We&apos;ve sent a confirmation link to {email}. Click the link to activate your account,
+          then come back and sign in.
         </Text>
         <Link href="/login" asChild>
           <Button title="Back to sign in" onPress={() => {}} variant="outline" />
