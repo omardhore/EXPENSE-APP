@@ -66,6 +66,7 @@ function RootLayoutNav() {
             name="income/new"
             options={{ presentation: "modal", title: "Add Income" }}
           />
+          <Stack.Screen name="export" options={{ presentation: "modal", title: "Export Data" }} />
           <Stack.Screen name="budget/[id]" options={{ presentation: "modal", title: "Budget" }} />
           <Stack.Screen
             name="budget/new"

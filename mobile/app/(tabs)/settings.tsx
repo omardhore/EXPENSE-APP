@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet } from "react-native";
+import { router } from "expo-router";
 import { Picker } from "@react-native-picker/picker";
 import { Text, View, useThemeColor } from "@/components/Themed";
 import { Field } from "@/components/Field";
@@ -66,28 +67,24 @@ export default function SettingsScreen() {
   }
 
   function handleDeleteAccount() {
-    Alert.alert(
-      "Delete account",
-      "Delete your account FOREVER? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await callAccountApi("/api/v1/account");
-              await signOut();
-            } catch (err) {
-              Alert.alert("Error", err instanceof Error ? err.message : "Failed to delete account");
-            } finally {
-              setDeleting(false);
-            }
-          },
+    Alert.alert("Delete account", "Delete your account FOREVER? This action cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          setDeleting(true);
+          try {
+            await callAccountApi("/api/v1/account");
+            await signOut();
+          } catch (err) {
+            Alert.alert("Error", err instanceof Error ? err.message : "Failed to delete account");
+          } finally {
+            setDeleting(false);
+          }
         },
-      ],
-    );
+      },
+    ]);
   }
 
   if (loading) return null;
@@ -111,12 +108,26 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <Button title={saving ? "Saving..." : "Save Changes"} onPress={handleSave} loading={saving} />
+        <Button
+          title={saving ? "Saving..." : "Save Changes"}
+          onPress={handleSave}
+          loading={saving}
+        />
+      </View>
+
+      <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
+        <Text style={styles.sectionTitle}>Reports</Text>
+        <Text style={[styles.label, { color: muted }]}>
+          Export your expenses or income as CSV, PDF, or JSON.
+        </Text>
+        <Button title="Export Data" onPress={() => router.push("/export")} />
       </View>
 
       <Button title="Sign out" variant="ghost" onPress={signOut} />
 
-      <View style={[styles.card, styles.dangerCard, { backgroundColor: card, borderColor: danger }]}>
+      <View
+        style={[styles.card, styles.dangerCard, { backgroundColor: card, borderColor: danger }]}
+      >
         <Text style={[styles.sectionTitle, { color: danger }]}>Danger Zone</Text>
         <Button
           title={clearing ? "Clearing..." : "Clear Workspace Data"}
