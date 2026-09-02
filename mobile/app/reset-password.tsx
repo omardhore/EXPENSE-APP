@@ -1,35 +1,94 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
+import * as Linking from "expo-linking";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from "react-native";
 import { Text, View, useThemeColor } from "@/components/Themed";
 import { Field } from "@/components/Field";
 import { Button } from "@/components/Button";
 import { supabase } from "@/lib/supabase";
 
-// Landing screen for the "expensetracker://reset-password" deep link sent
-// by the forgot-password email. Supabase's mobile recovery flow delivers
-// access_token/refresh_token as query params, which we exchange for a
-// session before letting the user set a new password. Needs verification
-// on a real device/simulator — deep links can't be exercised in this
-// sandbox.
+// Landing screen for the "expensetracker://reset-password" deep link sent by
+// the forgot-password email. Supabase's implicit recovery flow delivers the
+// access_token / refresh_token in the URL *fragment* (#...), so we read the
+// full incoming URL via Linking.useURL() and parse both the fragment and the
+// query string. Requires the redirect URL to be on the Supabase allowlist
+// (Authentication -> URL Configuration -> Redirect URLs) or the email link
+// falls back to the Site URL. Verify on a real device — deep links can't be
+// exercised in a headless sandbox.
 //
-// TODO(security): the custom "expensetracker://" scheme is guessable and
-// not exclusively owned by this app (any app can register it on Android),
-// and raw access_token/refresh_token in the URL is spoofable. The robust
-// fix is the PKCE recovery flow (exchangeCodeForSession with the `code`
-// param), verifying `type=recovery`, and delivering the link over verified
-// App Links / Universal Links instead of the custom scheme. That requires
-// Supabase email-template + native (app.json associatedDomains /
-// intentFilters) changes beyond this file.
+// TODO(security): move to the PKCE recovery flow (exchangeCodeForSession with
+// a `code` param) delivered over verified App/Universal Links rather than the
+// guessable custom scheme; needs Supabase email-template + native config.
+function parseAuthParams(url: string | null): {
+  access_token?: string;
+  refresh_token?: string;
+  error?: string;
+} {
+  if (!url) return {};
+  const out: Record<string, string> = {};
+  const grab = (segment?: string) => {
+    if (!segment) return;
+    for (const pair of segment.split("&")) {
+      const [k, v] = pair.split("=");
+      if (k) out[decodeURIComponent(k)] = decodeURIComponent(v ?? "");
+    }
+  };
+  const afterHash = url.split("#")[1];
+  const afterQuery = url.split("?")[1]?.split("#")[0];
+  grab(afterQuery);
+  grab(afterHash);
+  return {
+    access_token: out.access_token,
+    refresh_token: out.refresh_token,
+    error: out.error_description || out.error,
+  };
+}
+
 export default function ResetPasswordScreen() {
+  // Tokens can arrive three ways depending on the flow and platform:
+  //  - query params, which expo-router parses into route params
+  //  - the URL fragment (#...), which expo-router drops — read from the raw URL
+  // Cover both: route params first, then the raw initial/live deep-link URL.
   const params = useLocalSearchParams<{
     access_token?: string;
     refresh_token?: string;
+    error_description?: string;
+    error?: string;
   }>();
+  const liveUrl = Linking.useURL();
+  const [initialUrl, setInitialUrl] = useState<string | null>(null);
+  useEffect(() => {
+    Linking.getInitialURL().then((u) => setInitialUrl(u ?? null));
+  }, []);
+
+  const authParams = useMemo(() => {
+    const fromUrl = parseAuthParams(liveUrl ?? initialUrl);
+    return {
+      access_token:
+        (typeof params.access_token === "string" ? params.access_token : undefined) ??
+        fromUrl.access_token,
+      refresh_token:
+        (typeof params.refresh_token === "string" ? params.refresh_token : undefined) ??
+        fromUrl.refresh_token,
+      error:
+        (typeof params.error_description === "string"
+          ? params.error_description
+          : typeof params.error === "string"
+            ? params.error
+            : undefined) ?? fromUrl.error,
+    };
+  }, [
+    params.access_token,
+    params.refresh_token,
+    params.error_description,
+    params.error,
+    liveUrl,
+    initialUrl,
+  ]);
+
   const [ready, setReady] = useState(false);
-  // Gates the password update: only true once a recovery session was
-  // freshly established from this navigation's tokens. Never trust an
-  // ambient/pre-existing session for a password change.
+  // Gates the password update: only true once a recovery session was freshly
+  // established from this link's tokens. Never trust an ambient session.
   const [recoverySession, setRecoverySession] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -40,16 +99,32 @@ export default function ResetPasswordScreen() {
 
   useEffect(() => {
     let ignore = false;
+
+    // Safety net: if no deep-link URL ever arrives (screen reached without a
+    // recovery link), don't hang on a blank screen — bounce to login.
+    const timer = setTimeout(() => {
+      if (ignore || ready) return;
+      setError("Invalid or expired reset link. Request a new one.");
+      setReady(true);
+      router.replace("/login");
+    }, 4000);
+
     async function establishSession() {
-      if (params.access_token && params.refresh_token) {
+      if (authParams.error) {
+        await supabase.auth.signOut();
+        if (ignore) return;
+        setError(authParams.error);
+        setReady(true);
+        router.replace("/login");
+        return;
+      }
+      if (authParams.access_token && authParams.refresh_token) {
         const { error } = await supabase.auth.setSession({
-          access_token: params.access_token,
-          refresh_token: params.refresh_token,
+          access_token: authParams.access_token,
+          refresh_token: authParams.refresh_token,
         });
         if (ignore) return;
         if (error) {
-          // Invalid/expired link: tear down any ambient session so the user
-          // is never left silently logged in, and bounce to login.
           await supabase.auth.signOut();
           if (ignore) return;
           setError(error.message);
@@ -58,25 +133,28 @@ export default function ResetPasswordScreen() {
           return;
         }
         setRecoverySession(true);
-      } else {
-        // Reached without recovery tokens — i.e. this screen was not opened
-        // from a recovery deep link. Do NOT sign out: an ambient session here
-        // belongs to a normally logged-in user, and tearing it down bounces
-        // them out of the app. Just leave; routing sends them to the right
-        // place based on their auth state.
+        setReady(true);
+        return;
+      }
+      // A URL arrived but carried no tokens — invalid link. (params with no
+      // route params either means nothing to work with.)
+      if ((liveUrl ?? initialUrl) && !params.access_token) {
         if (ignore) return;
         setError("Invalid or expired reset link. Request a new one.");
         setReady(true);
         router.replace("/login");
-        return;
       }
-      setReady(true);
+      // else: still waiting for the URL/params to resolve; the timer handles
+      // the no-link case.
     }
+
     establishSession();
     return () => {
       ignore = true;
+      clearTimeout(timer);
     };
-  }, [params.access_token, params.refresh_token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authParams.access_token, authParams.refresh_token, authParams.error, liveUrl, initialUrl]);
 
   async function handleSubmit() {
     setError(null);
@@ -95,7 +173,10 @@ export default function ResetPasswordScreen() {
       setError(error.message);
       return;
     }
-    router.replace("/(tabs)");
+    // Password changed — sign out of the recovery session and have the user
+    // sign in with their new password.
+    await supabase.auth.signOut();
+    router.replace("/login");
   }
 
   if (!ready) return null;

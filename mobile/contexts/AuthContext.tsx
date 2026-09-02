@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
@@ -20,6 +20,10 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  // During signup we immediately sign the auto-created session back out (see
+  // signUp). Ignore those transient auth events so the app never navigates
+  // into the dashboard on a half-settled session and then bounces back.
+  const signingUpRef = useRef(false);
 
   useEffect(() => {
     supabase.auth
@@ -40,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event: string, newSession: Session | null) => {
+      if (signingUpRef.current) return;
       setSession(newSession);
     });
 
@@ -55,18 +60,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signUp(email: string, password: string, name: string) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { name } },
-    });
-    // When email confirmation is disabled, signUp returns a session and the
-    // auth-state listener signs the user straight in. When it's enabled, there
-    // is no session yet and the user must confirm via email first.
-    return {
-      error: error?.message ?? null,
-      needsConfirmation: !error && !data.session,
-    };
+    signingUpRef.current = true;
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name } },
+      });
+      if (error) {
+        const already = /already registered|already exists|user_already/i.test(error.message);
+        return {
+          error: already
+            ? "This email is already registered. Please sign in instead."
+            : error.message,
+          needsConfirmation: false,
+        };
+      }
+      // With email confirmation on, Supabase obfuscates an existing address as
+      // a user with no identities (and no session) to avoid leaking which
+      // emails are registered. Treat that as "already registered" too.
+      if (data.user && (data.user.identities?.length ?? 0) === 0) {
+        return {
+          error: "This email is already registered. Please sign in instead.",
+          needsConfirmation: false,
+        };
+      }
+      if (data.session) {
+        // Email confirmation is off, so signUp auto-signed the user in. Sign
+        // that session back out so the user logs in explicitly. This avoids
+        // landing on the dashboard on a session that's still settling — which
+        // made the first data load error until a manual refresh.
+        await supabase.auth.signOut();
+        return { error: null, needsConfirmation: false };
+      }
+      // Confirmation is on: no session yet, the user must confirm via email.
+      return { error: null, needsConfirmation: true };
+    } finally {
+      signingUpRef.current = false;
+    }
   }
 
   async function signOut() {

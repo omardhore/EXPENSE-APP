@@ -13,7 +13,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [done, setDone] = useState<null | "confirm" | "created">(null);
   const danger = useThemeColor({}, "danger");
   const dangerBg = useThemeColor({}, "dangerBg");
   const tint = useThemeColor({}, "tint");
@@ -22,33 +22,29 @@ export default function SignupScreen() {
     setError(null);
     setLoading(true);
     const { error, needsConfirmation } = await signUp(email, password, name);
+    setLoading(false);
     if (error) {
-      setLoading(false);
       setError(error);
       return;
     }
-    if (needsConfirmation) {
-      // Email confirmation is on — show the "check your email" screen.
-      setLoading(false);
-      setSuccess(true);
-      return;
-    }
-    // A session was created (confirmation off). Keep the loading state so the
-    // button stays "Creating account..." while the auth listener navigates
-    // into the app — otherwise the idle signup form flashes back briefly and
-    // looks like the signup bounced.
+    // Either way the user signs in explicitly next — "confirm" when email
+    // confirmation is on, "created" when the account is ready right away.
+    setDone(needsConfirmation ? "confirm" : "created");
   }
 
-  if (success) {
+  if (done) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Check your email</Text>
+        <Text style={styles.title}>
+          {done === "confirm" ? "Check your email" : "Account created"}
+        </Text>
         <Text style={styles.subtitle}>
-          We&apos;ve sent a confirmation link to {email}. Click the link to activate your account,
-          then come back and sign in.
+          {done === "confirm"
+            ? `We've sent a confirmation link to ${email}. Click the link to activate your account, then sign in.`
+            : "Your account is ready — sign in to get started."}
         </Text>
         <Link href="/login" asChild>
-          <Button title="Back to sign in" onPress={() => {}} variant="outline" />
+          <Button title="Go to sign in" onPress={() => {}} variant="outline" />
         </Link>
       </View>
     );
